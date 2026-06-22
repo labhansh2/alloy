@@ -5,30 +5,31 @@ import (
 	"time"
 )
 
-type testTrigger struct {}
+type testTrigger struct{}
 
 func (t *testTrigger) Id() string {
 	return "testTrigger"
 }
 
-func (t *testTrigger) Send(ctx context.Context, job chan <- Job) {
+func (t *testTrigger) Send(ctx context.Context, job chan<- Job) {
 
-	p := map[string]any {
+	p := map[string]any{
 		"something": "something else",
 	}
 
 	thisJob := Job{
-		Source: t.Id(),
+		Source:  t.Id(),
 		Payload: p,
 	}
 
 	ticker := time.NewTicker(2 * time.Second)
 	for {
-		select{
-		case <- ctx.Done(): return 
-		case <- ticker.C: job <- thisJob
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			job <- thisJob
 		}
 	}
 
 }
-

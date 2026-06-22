@@ -7,7 +7,7 @@ import (
 )
 
 type testFlow2 struct {
-	httpClient *http.Client	
+	httpClient *http.Client
 }
 
 func (t *testFlow2) Run(ctx context.Context, payload map[string]any) {
@@ -18,7 +18,7 @@ func (t *testFlow2) Run(ctx context.Context, payload map[string]any) {
 		return
 	}
 	defer resp.Body.Close()
-	
+
 	buf := make([]byte, 1024)
 	n, err := resp.Body.Read(buf)
 	if err != nil && err.Error() != "EOF" {

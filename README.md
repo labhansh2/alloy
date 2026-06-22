@@ -1,1 +1,11 @@
 router for automations that run my life
+
+todo 
+- [ ] logger
+- [ ] renaming concepts
+- [ ] notification channels (borrow concepts from calwbot)
+- [ ] base triggers
+    - [ ] webhook
+    - [ ] polling
+    - [ ] tickers (prolly just use the default one)
+    - [ ] timed exec

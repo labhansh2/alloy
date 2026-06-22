@@ -37,7 +37,7 @@ func (t *testTrigger2) Send(ctx context.Context, job chan<- Job) {
 
 		select {
 		case job <- Job{
-			Source: t.Id(),
+			Source:  t.Id(),
 			Payload: payload,
 		}:
 			w.WriteHeader(http.StatusOK)
