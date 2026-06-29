@@ -2,19 +2,27 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"net/http"
 )
 
-type testFlow2 struct {
+type TestFlow2 struct {
 	httpClient *http.Client
+	logger     *log.Logger
 }
 
-func (t *testFlow2) Run(ctx context.Context, payload map[string]any) {
-	fmt.Printf("Received %v\n", payload)
+func (t *TestFlow2) Id() string { return "TestFlow2" }
+
+func (t *TestFlow2) Init(services Services) {
+	t.httpClient = services.HttpClient
+	t.logger = services.Logger
+}
+
+func (t *TestFlow2) Run(ctx context.Context, payload map[string]any) {
+	t.logger.Printf("Received %v\n", payload)
 	resp, err := t.httpClient.Get("http://localhost:8000/")
 	if err != nil {
-		fmt.Println("Error fetching from localhost:8000:", err)
+		t.logger.Println("Error fetching from localhost:8000:", err)
 		return
 	}
 	defer resp.Body.Close()
@@ -22,8 +30,8 @@ func (t *testFlow2) Run(ctx context.Context, payload map[string]any) {
 	buf := make([]byte, 1024)
 	n, err := resp.Body.Read(buf)
 	if err != nil && err.Error() != "EOF" {
-		fmt.Println("Error reading response body:", err)
+		t.logger.Println("Error reading response body:", err)
 		return
 	}
-	fmt.Printf("Response from localhost:8000: %s\n", string(buf[:n]))
+	t.logger.Printf("Response from localhost:8000: %s\n", string(buf[:n]))
 }

@@ -2,16 +2,26 @@ package main
 
 import (
 	"context"
+	"log"
 	"time"
 )
 
-type testTrigger struct{}
+type TestTrigger struct {
+	logger *log.Logger
+}
 
-func (t *testTrigger) Id() string {
+func (t *TestTrigger) Id() string {
 	return "testTrigger"
 }
 
-func (t *testTrigger) Send(ctx context.Context, job chan<- Job) {
+func (t *TestTrigger) Init(Services Services) {
+	t.logger = Services.Logger
+	t.logger.Printf("Initializing %s", t.Id())
+}
+
+func (t *TestTrigger) Start(ctx context.Context, job chan<- Job) {
+
+	t.logger.Printf("%s started", t.Id())
 
 	p := map[string]any{
 		"something": "something else",

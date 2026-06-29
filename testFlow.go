@@ -2,11 +2,19 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
 )
 
-type testFlow struct{}
+type TestFlow struct {
+	logger *log.Logger
+}
 
-func (t *testFlow) Run(ctx context.Context, payload map[string]any) {
-	fmt.Printf("running flow with payload: %v\n", payload)
+func (t *TestFlow) Id() string { return "TestFlow" }
+
+func (t *TestFlow) Init(Services Services) {
+	t.logger = Services.Logger
+}
+
+func (t *TestFlow) Run(ctx context.Context, payload map[string]any) {
+	t.logger.Printf("running flow with payload: %v\n", payload)
 }

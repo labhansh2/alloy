@@ -9,12 +9,15 @@ import (
 )
 
 type Action interface {
+	Id() string
+	Init(services Services)
 	Run(ctx context.Context, payload map[string]any)
 }
 
 type Trigger interface {
 	Id() string
-	Send(ctx context.Context, payload chan<- Job)
+	Init(services Services)
+	Start(ctx context.Context, payload chan<- Job)
 }
 
 type Job struct {
@@ -22,10 +25,15 @@ type Job struct {
 	Payload map[string]any
 }
 
-type Engine struct {
+// think about adding custom services in the future
+type Services struct {
 	HttpClient    *http.Client   // Used for polling/triggers that make outbound HTTP requests
 	HttpServerMux *http.ServeMux // Used for incoming webhooks
 	Logger        *log.Logger
+}
+
+type Engine struct {
+	services Services // encapsulates all the services like clients, servers and loggers
 
 	triggers   []Trigger
 	router     map[string]Action // might need to think about multiple actions later
@@ -35,14 +43,29 @@ type Engine struct {
 
 func NewEngine() *Engine {
 	return &Engine{
-		HttpClient:    &http.Client{},
-		HttpServerMux: &http.ServeMux{},
-		Logger:        log.New(os.Stdout, "", log.LstdFlags),
 
-		triggers:      make([]Trigger, 0),
-		router:        make(map[string]Action),
-		jobs:          make(chan Job),
-		numWorkers:    runtime.NumCPU(), // we use number of cpus on the device to spawn workers by default
+		services: Services{
+			HttpClient:    &http.Client{},
+			HttpServerMux: &http.ServeMux{},
+			Logger:        log.New(os.Stdout, "", log.LstdFlags),
+		},
+
+		triggers:   make([]Trigger, 0),
+		router:     make(map[string]Action),
+		jobs:       make(chan Job),
+		numWorkers: runtime.NumCPU(), // we use number of cpus on the device to spawn workers by default
+	}
+}
+
+func NewEngineWithServices(services Services) *Engine {
+	return &Engine{
+
+		services: services,
+
+		triggers:   make([]Trigger, 0),
+		router:     make(map[string]Action),
+		jobs:       make(chan Job),
+		numWorkers: runtime.NumCPU(),
 	}
 }
 
@@ -50,15 +73,21 @@ func (e *Engine) Start() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	e.services.Logger.Println("Engine started")
+
 	for _, t := range e.triggers {
-		go t.Send(ctx, e.jobs)
+		e.services.Logger.Printf("Spinning up trigger: %s\n", t.Id())
+		go t.Start(ctx, e.jobs)
 	}
 
-	if e.HttpServerMux != nil {
+	if e.services.HttpServerMux != nil {
 		go func() {
-			if err := http.ListenAndServe(":8080", e.HttpServerMux); err != nil {
-				e.Logger.Fatal("Cannot spin up the server")
-				panic("Cannot spin up the server")
+			server := &http.Server{
+				Addr:    ":8080",
+				Handler: e.services.HttpServerMux,
+			}
+			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				e.services.Logger.Fatalf("Cannot spin up the server: %v", err)
 			}
 		}()
 	}
@@ -66,14 +95,20 @@ func (e *Engine) Start() {
 	for i := 0; i < e.numWorkers; i++ {
 		go e.jobWorker(ctx)
 	}
+
+	// Block forever; exit only on process termination or external context cancellation
+	select {}
 }
 
 func (e *Engine) Shutdown() {
 	//might require more cleanups
-	e.HttpClient.CloseIdleConnections()
+	e.services.HttpClient.CloseIdleConnections()
 }
 
 func (e *Engine) RegisterFlow(trigger Trigger, action Action) {
+	e.services.Logger.Printf("Registering trigger %s to an action", trigger.Id())
+	trigger.Init(e.services)
+	action.Init(e.services)
 	e.triggers = append(e.triggers, trigger)
 	e.router[trigger.Id()] = action
 }
@@ -83,7 +118,7 @@ func (e *Engine) SetNumWorkers(numWorkers int) {
 }
 
 func (e *Engine) AddCustomLogger(logger *log.Logger) {
-	e.Logger = logger
+	e.services.Logger = logger
 }
 
 func (e *Engine) jobWorker(ctx context.Context) {
@@ -92,6 +127,7 @@ func (e *Engine) jobWorker(ctx context.Context) {
 		case j := <-e.jobs:
 			e.router[j.Source].Run(ctx, j.Payload)
 		case <-ctx.Done():
+			e.services.Logger.Println("Worker stopped")
 			return
 		}
 	}

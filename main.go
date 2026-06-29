@@ -6,9 +6,9 @@ func main() {
 
 	engine := NewEngine()
 
-	engine.RegisterFlow(&testTrigger{}, &testFlow{})
-	engine.RegisterFlow(&testTrigger2{engine.HttpServerMux}, &testFlow2{engine.HttpClient})
+	engine.RegisterFlow(&TestTrigger{}, &TestFlow{})
+	engine.RegisterFlow(&testTrigger2{}, &TestFlow2{})
 
 	engine.Start()
-	defer engine.Shutdown()
+	// defer engine.Shutdown()
 }
