@@ -8,7 +8,8 @@ func main() {
 
 	engine.RegisterFlow(&TestTrigger{}, &TestFlow{})
 	engine.RegisterFlow(&testTrigger2{}, &TestFlow2{})
+	engine.RegisterFlow(&TestTrigger3{}, &TestFlow3{})
 
 	engine.Start()
-	// defer engine.Shutdown()
+	defer engine.Shutdown()
 }
