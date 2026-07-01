@@ -1,6 +1,7 @@
 package main
 
 import (
+	"alloy"
 	"context"
 	"log"
 	"net/http"
@@ -13,7 +14,7 @@ type TestFlow2 struct {
 
 func (t *TestFlow2) Id() string { return "TestFlow2" }
 
-func (t *TestFlow2) Init(services Services) {
+func (t *TestFlow2) Init(services alloy.Services) {
 	t.httpClient = services.HttpClient
 	t.logger = services.Logger
 }

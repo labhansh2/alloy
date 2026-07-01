@@ -1,4 +1,4 @@
-package main
+package alloy
 
 import (
 	"context"
@@ -69,10 +69,7 @@ func NewEngineWithServices(services Services) *Engine {
 	}
 }
 
-func (e *Engine) Start() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+func (e *Engine) Start(ctx context.Context) error {
 	e.services.Logger.Println("Engine started")
 
 	for _, t := range e.triggers {
@@ -81,13 +78,20 @@ func (e *Engine) Start() {
 	}
 
 	if e.services.HttpServerMux != nil {
+		server := &http.Server{
+			Addr:    ":8080",
+			Handler: e.services.HttpServerMux,
+		}
+
 		go func() {
-			server := &http.Server{
-				Addr:    ":8080",
-				Handler: e.services.HttpServerMux,
-			}
-			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				e.services.Logger.Fatalf("Cannot spin up the server: %v", err)
+			<-ctx.Done()
+			server.Shutdown(context.Background())
+		}()
+
+		go func() {
+			if err := server.ListenAndServe(); err != nil &&
+				err != http.ErrServerClosed {
+				e.services.Logger.Printf("server error: %v", err)
 			}
 		}()
 	}
@@ -96,8 +100,11 @@ func (e *Engine) Start() {
 		go e.jobWorker(ctx)
 	}
 
-	// Block forever; exit only on process termination or external context cancellation
-	select {}
+	<-ctx.Done()
+
+	e.Shutdown()
+	e.services.Logger.Println("Engine shutting down")
+	return nil
 }
 
 func (e *Engine) Shutdown() {
@@ -124,8 +131,16 @@ func (e *Engine) AddCustomLogger(logger *log.Logger) {
 func (e *Engine) jobWorker(ctx context.Context) {
 	for {
 		select {
-		case j := <-e.jobs:
-			e.router[j.Source].Run(ctx, j.Payload)
+		case j, ok := <-e.jobs:
+			if !ok {
+				return
+			}
+			action, ok := e.router[j.Source]
+			if !ok {
+				e.services.Logger.Printf("no action registered for trigger %q", j.Source)
+				continue
+			}
+			action.Run(ctx, j.Payload)
 		case <-ctx.Done():
 			e.services.Logger.Println("Worker stopped")
 			return

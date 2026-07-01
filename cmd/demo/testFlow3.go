@@ -1,6 +1,7 @@
 package main
 
 import (
+	"alloy"
 	"context"
 	"log"
 )
@@ -11,7 +12,7 @@ type TestFlow3 struct {
 
 func (t *TestFlow3) Id() string { return "TestFlow" }
 
-func (t *TestFlow3) Init(Services Services) {
+func (t *TestFlow3) Init(Services alloy.Services) {
 	t.logger = Services.Logger
 }
 

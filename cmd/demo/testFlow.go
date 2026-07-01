@@ -1,6 +1,7 @@
 package main
 
 import (
+	"alloy"
 	"context"
 	"log"
 )
@@ -11,10 +12,10 @@ type TestFlow struct {
 
 func (t *TestFlow) Id() string { return "TestFlow" }
 
-func (t *TestFlow) Init(Services Services) {
+func (t *TestFlow) Init(Services alloy.Services) {
 	t.logger = Services.Logger
 }
 
 func (t *TestFlow) Run(ctx context.Context, payload map[string]any) {
-	t.logger.Printf("running flow with payload: %v\n", payload)
+	t.logger.Printf("TestFlow: running flow with payload: %v\n", payload)
 }

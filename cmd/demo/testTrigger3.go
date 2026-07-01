@@ -1,6 +1,7 @@
 package main
 
 import (
+	"alloy"
 	"context"
 	"log"
 	"net/http"
@@ -14,12 +15,12 @@ type TestTrigger3 struct {
 
 func (t *TestTrigger3) Id() string { return "TestTrigger3" }
 
-func (t *TestTrigger3) Init(services Services) {
+func (t *TestTrigger3) Init(services alloy.Services) {
 	t.logger = services.Logger
 	t.httpClient = services.HttpClient
 }
 
-func (t *TestTrigger3) Start(ctx context.Context, job chan<- Job) {
+func (t *TestTrigger3) Start(ctx context.Context, job chan<- alloy.Job) {
 
 	req, err := http.NewRequestWithContext(
 		context.Background(),
@@ -34,13 +35,13 @@ func (t *TestTrigger3) Start(ctx context.Context, job chan<- Job) {
 	req.Header.Set("User-Agent", "MyBot/1.0")
 	req.Header.Set("Accept", "application/json")
 
-	p := NewPoll(ctx, t.httpClient, req, 2*time.Second)
+	p := alloy.NewPoll(ctx, t.httpClient, req, 2*time.Second)
 
 	for {
 		select {
 		case data := <-p.C:
 			m := map[string]any{"post": string(data)}
-			job <- Job{
+			job <- alloy.Job{
 				Source:  t.Id(),
 				Payload: m,
 			}

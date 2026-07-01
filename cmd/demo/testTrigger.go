@@ -1,6 +1,7 @@
 package main
 
 import (
+	"alloy"
 	"context"
 	"log"
 	"time"
@@ -14,12 +15,12 @@ func (t *TestTrigger) Id() string {
 	return "testTrigger"
 }
 
-func (t *TestTrigger) Init(Services Services) {
+func (t *TestTrigger) Init(Services alloy.Services) {
 	t.logger = Services.Logger
 	t.logger.Printf("Initializing %s", t.Id())
 }
 
-func (t *TestTrigger) Start(ctx context.Context, job chan<- Job) {
+func (t *TestTrigger) Start(ctx context.Context, job chan<- alloy.Job) {
 
 	t.logger.Printf("%s started", t.Id())
 
@@ -27,7 +28,7 @@ func (t *TestTrigger) Start(ctx context.Context, job chan<- Job) {
 		"something": "something else",
 	}
 
-	thisJob := Job{
+	thisJob := alloy.Job{
 		Source:  t.Id(),
 		Payload: p,
 	}
