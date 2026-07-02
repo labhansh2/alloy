@@ -8,21 +8,23 @@ import (
 	"runtime"
 )
 
+type Payload map[string]any
+
 type Action interface {
 	Id() string
 	Init(services Services)
-	Run(ctx context.Context, payload map[string]any)
+	Run(ctx context.Context, payload Payload)
 }
 
 type Trigger interface {
 	Id() string
 	Init(services Services)
-	Start(ctx context.Context, payload chan<- Job)
+	Start(ctx context.Context, job chan<- Job)
 }
 
 type Job struct {
 	Source  string // this will be the id of the Trigger
-	Payload map[string]any
+	Payload Payload 
 }
 
 // think about adding custom services in the future

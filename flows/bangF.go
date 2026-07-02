@@ -18,6 +18,6 @@ func (BF *BangFlow) Init(s alloy.Services) {
 	BF.logger = s.Logger
 }
 
-func (BT *BangFlow) Run(ctx context.Context, payload map[string]any) {
+func (BT *BangFlow) Run(ctx context.Context, payload alloy.Payload) {
 	BT.logger.Println(payload)
 }

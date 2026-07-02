@@ -16,6 +16,6 @@ func (t *TestFlow3) Init(Services alloy.Services) {
 	t.logger = Services.Logger
 }
 
-func (t *TestFlow3) Run(ctx context.Context, payload map[string]any) {
+func (t *TestFlow3) Run(ctx context.Context, payload alloy.Payload) {
 	t.logger.Printf("running flow 3 with payload: %v\n", payload)
 }

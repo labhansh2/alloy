@@ -19,7 +19,7 @@ func (t *TestFlow2) Init(services alloy.Services) {
 	t.logger = services.Logger
 }
 
-func (t *TestFlow2) Run(ctx context.Context, payload map[string]any) {
+func (t *TestFlow2) Run(ctx context.Context, payload alloy.Payload) {
 	t.logger.Printf("Received %v\n", payload)
 	resp, err := t.httpClient.Get("http://localhost:8000/")
 	if err != nil {
