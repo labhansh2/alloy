@@ -13,17 +13,25 @@ todo
     - [ ] timed exec
 - [x] error handling
 - [x] better engine sync
+- [x] trigger chainging <-
+- [x] dispatcher
+- [ ] polish dispatcher
+- [ ] payload as byte stream?
+- [ ] streaming?
 - [ ] ci
 - [ ] optimized deployment pipeline for a common user
 - [ ] better jobs logging and schema
-- [ ] buffered jobs
+    - timestamps
+    - trace ID
+    - retry count
+    - metadata
+- [x] buffered jobs
 - [ ] buffered C's
-- [ ] flow 
 - [ ] custom services/ refactor services
+- [ ] draw flow
 
 flows
 - [ ] bang
 - [ ] nottager
 - [ ] sum up HN
 - [ ] sum up yt feed
-- [ ] startup search

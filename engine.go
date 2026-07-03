@@ -5,66 +5,30 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"runtime"
 )
-
-type Payload map[string]any
-
-type Job struct {
-	Source  string // this will be the id of the Trigger
-	Payload Payload
-}
-
-type Action interface {
-	Id() string
-	Init(services Services)
-	Run(ctx context.Context, payload Payload)
-}
-
-type Trigger interface {
-	Id() string
-	Init(services Services)
-	Start(ctx context.Context, job chan<- Job)
-}
 
 // think about adding custom services in the future
 type Services struct {
-	// base
 	HttpClient    *http.Client   // Used for polling/triggers that make outbound HTTP requests
 	HttpServerMux *http.ServeMux // Used for incoming webhooks
 	Logger        *log.Logger
-
-	// // custom
-	// AI *clients.AI
-	// Notion *clients.Notion
 }
 
 type Engine struct {
-	services Services // encapsulates all the services like clients, servers and loggers
-
-	triggers   []Trigger
-	router     map[string]Action // might need to think about multiple actions later
-	jobs       chan Job          // channel buffer size can be variable
-	numWorkers int
+	services   Services // encapsulates all the services like clients, servers and loggers
+	dispatcher Dispatcher
 }
 
 func NewEngine() *Engine {
-
-	c := &http.Client{}
-
+	logger := log.New(os.Stdout, "", log.LstdFlags)
 	return &Engine{
-
 		services: Services{
 
-			HttpClient:    c,
+			HttpClient:    &http.Client{},
 			HttpServerMux: &http.ServeMux{},
-			Logger:        log.New(os.Stdout, "", log.LstdFlags),
+			Logger:        logger,
 		},
-
-		triggers:   make([]Trigger, 0),
-		router:     make(map[string]Action),
-		jobs:       make(chan Job),
-		numWorkers: runtime.NumCPU(), // we use number of cpus on the device to spawn workers by default
+		dispatcher: *NewDispatcher(logger),
 	}
 }
 
@@ -73,18 +37,9 @@ func NewEngineWithServices(e *Engine, services Services) *Engine {
 	return e
 }
 
-func NewEngineWithBufferedJobs(e *Engine, numBuffer int) *Engine {
-	e.jobs = make(chan Job, numBuffer)
-	return e
-}
-
 func (e *Engine) Start(ctx context.Context) error {
-	e.services.Logger.Println("Engine started")
-
-	for _, t := range e.triggers {
-		e.services.Logger.Printf("Spinning up trigger: %s\n", t.Id())
-		go t.Start(ctx, e.jobs)
-	}
+	e.services.Logger.Println("Starting Engine")
+	e.dispatcher.SpinNodeWorkers(ctx)
 
 	if e.services.HttpServerMux != nil {
 		server := &http.Server{
@@ -105,10 +60,7 @@ func (e *Engine) Start(ctx context.Context) error {
 		}()
 	}
 
-	for i := 0; i < e.numWorkers; i++ {
-		go e.jobWorker(i, ctx)
-	}
-
+	e.dispatcher.Start(ctx)
 	<-ctx.Done()
 
 	e.Shutdown()
@@ -116,47 +68,39 @@ func (e *Engine) Start(ctx context.Context) error {
 	return nil
 }
 
-func (e *Engine) Shutdown() {
-	//might require more cleanups
-	e.services.HttpClient.CloseIdleConnections()
+func (e *Engine) RegisterNode(node Node) error {
+	node.Init(e.services)
+	err := e.dispatcher.AddNode(node)
+	return err
 }
 
-func (e *Engine) RegisterFlow(trigger Trigger, action Action) {
-	e.services.Logger.Printf("Registering trigger %s to an action", trigger.Id())
-	trigger.Init(e.services)
-	action.Init(e.services)
-	e.triggers = append(e.triggers, trigger)
-	e.router[trigger.Id()] = action
+func (e *Engine) RegisterNodes(nodes []Node) error {
+	for _, n := range nodes {
+		err := e.RegisterNode(n)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (e *Engine) SetNumWorkers(numWorkers int) {
-	e.numWorkers = numWorkers
+func (e *Engine) RegisterConnection(source string, destination string) {
+	e.dispatcher.AddConnection(source, destination)
+}
+
+func (e *Engine) RegisterConnections(connections map[string][]string) {
+	for src, dsts := range connections {
+		for _, dst := range dsts {
+			e.RegisterConnection(src, dst)
+		}
+	}
 }
 
 func (e *Engine) AddCustomLogger(logger *log.Logger) {
 	e.services.Logger = logger
 }
 
-func (e *Engine) jobWorker(id int, ctx context.Context) {
-
-	e.services.Logger.Printf("Spinning up worker: %d\n", id)
-
-	for {
-		select {
-		case j, ok := <-e.jobs:
-			if !ok {
-				return
-			}
-			action, ok := e.router[j.Source]
-			if !ok {
-				e.services.Logger.Printf("no action registered for trigger %q", j.Source)
-				continue
-			}
-			e.services.Logger.Printf("")
-			action.Run(ctx, j.Payload)
-		case <-ctx.Done():
-			e.services.Logger.Printf("Worker %d stopped\n", id)
-			return
-		}
-	}
+func (e *Engine) Shutdown() {
+	//might require more cleanups
+	e.services.HttpClient.CloseIdleConnections()
 }

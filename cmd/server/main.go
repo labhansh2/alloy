@@ -1,16 +1,14 @@
 package main
 
 import (
-
+	"context"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"context"
-	"log"
 
 	"alloy"
-	"alloy/flows"
-	"alloy/triggers"
+	// "alloy/nodes"
 )
 
 func main() {
@@ -24,7 +22,7 @@ func main() {
 
 	engine := alloy.NewEngine()
 
-	engine.RegisterFlow(&triggers.BangTrigger{}, &flows.BangFlow{})
+	// engine.RegisterFlow(&triggers.DetectBang{}, &flows.BangFlow{})
 
 	if err := engine.Start(ctx); err != nil {
 		log.Fatal(err)

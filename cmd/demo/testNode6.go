@@ -8,19 +8,21 @@ import (
 	"time"
 )
 
-type TestTrigger3 struct {
+type TestNode6 struct {
 	logger     *log.Logger
 	httpClient *http.Client
 }
 
-func (t *TestTrigger3) Id() string { return "TestTrigger3" }
+func (t *TestNode6) Id() string { return "TestNode6" }
 
-func (t *TestTrigger3) Init(services alloy.Services) {
+func (t *TestNode6) NumInstances() int { return  1}
+
+func (t *TestNode6) Init(services alloy.Services) {
 	t.logger = services.Logger
 	t.httpClient = services.HttpClient
 }
 
-func (t *TestTrigger3) Start(ctx context.Context, job chan<- alloy.Job) {
+func (t *TestNode6) Start(ctx context.Context, _ <-chan alloy.Job, outJob chan<- alloy.Job) {
 
 	req, err := http.NewRequestWithContext(
 		context.Background(),
@@ -41,7 +43,7 @@ func (t *TestTrigger3) Start(ctx context.Context, job chan<- alloy.Job) {
 		select {
 		case data := <-p.C:
 			m := map[string]any{"post": string(data)}
-			job <- alloy.Job{
+			outJob <- alloy.Job{
 				Source:  t.Id(),
 				Payload: m,
 			}

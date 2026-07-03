@@ -7,20 +7,22 @@ import (
 	"time"
 )
 
-type TestTrigger struct {
+type TestNode4 struct {
 	logger *log.Logger
 }
 
-func (t *TestTrigger) Id() string {
-	return "testTrigger"
+func (t *TestNode4) Id() string {
+	return "TestNode4"
 }
 
-func (t *TestTrigger) Init(Services alloy.Services) {
+func (t *TestNode4) NumInstances() int { return 1 }
+
+func (t *TestNode4) Init(Services alloy.Services) {
 	t.logger = Services.Logger
 	t.logger.Printf("Initializing %s", t.Id())
 }
 
-func (t *TestTrigger) Start(ctx context.Context, job chan<- alloy.Job) {
+func (t *TestNode4) Start(ctx context.Context, _ <-chan alloy.Job, outJob chan<- alloy.Job) {
 
 	t.logger.Printf("%s started", t.Id())
 
@@ -40,7 +42,7 @@ func (t *TestTrigger) Start(ctx context.Context, job chan<- alloy.Job) {
 			t.logger.Printf("%s stopped", t.Id())
 			return
 		case <-ticker.C:
-			job <- thisJob
+			outJob <- thisJob
 		}
 	}
 
