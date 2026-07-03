@@ -8,21 +8,23 @@ import (
 	"net/http"
 )
 
-type testTrigger2 struct {
+type TestNode5 struct {
 	logger        *log.Logger
 	httpServerMux *http.ServeMux
 }
 
-func (t *testTrigger2) Id() string {
-	return "testTrigger2"
+func (t *TestNode5) Id() string {
+	return "TestNode5"
 }
 
-func (t *testTrigger2) Init(services alloy.Services) {
+func (t *TestNode5) NumInstances() int { return 1 }
+
+func (t *TestNode5) Init(services alloy.Services) {
 	t.logger = services.Logger
 	t.httpServerMux = services.HttpServerMux
 }
 
-func (t *testTrigger2) Start(ctx context.Context, job chan<- alloy.Job) {
+func (t *TestNode5) Start(ctx context.Context, _ <-chan alloy.Job, outJob chan<- alloy.Job) {
 
 	wh := alloy.NewWebhook(ctx, t.httpServerMux, "/some")
 
@@ -37,7 +39,7 @@ func (t *testTrigger2) Start(ctx context.Context, job chan<- alloy.Job) {
 				t.logger.Fatalf("Failed to unmarshal webhook data: %v", err)
 				continue
 			}
-			job <- alloy.Job{Source: t.Id(), Payload: data}
+			outJob <- alloy.Job{Source: t.Id(), Payload: data}
 		}
 	}
 }
