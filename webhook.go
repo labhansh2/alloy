@@ -2,18 +2,17 @@ package alloy
 
 import (
 	"context"
-	"encoding/json"
+	"io"
 	"net/http"
 )
 
 type Webhook struct {
-	C chan map[string]any
+	C chan []byte
 }
 
 func NewWebhook(ctx context.Context, httpMux *http.ServeMux, url string) *Webhook {
-
 	w := Webhook{
-		C: make(chan map[string]any),
+		C: make(chan []byte),
 	}
 	w.listen(ctx, httpMux, url)
 
@@ -30,10 +29,9 @@ func (wh *Webhook) listen(ctx context.Context, httpMux *http.ServeMux, url strin
 		}
 		defer r.Body.Close()
 
-		data := make(map[string]any)
-		err := json.NewDecoder(r.Body).Decode(&data)
+		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 

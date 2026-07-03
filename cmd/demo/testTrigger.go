@@ -37,6 +37,7 @@ func (t *TestTrigger) Start(ctx context.Context, job chan<- alloy.Job) {
 	for {
 		select {
 		case <-ctx.Done():
+			t.logger.Printf("%s stopped", t.Id())
 			return
 		case <-ticker.C:
 			job <- thisJob

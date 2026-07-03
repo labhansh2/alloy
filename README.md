@@ -16,7 +16,14 @@ todo
 - [ ] ci
 - [ ] optimized deployment pipeline for a common user
 - [ ] better jobs logging and schema
+- [ ] buffered jobs
+- [ ] buffered C's
+- [ ] flow 
+- [ ] custom services/ refactor services
 
 flows
 - [ ] bang
 - [ ] nottager
+- [ ] sum up HN
+- [ ] sum up yt feed
+- [ ] startup search

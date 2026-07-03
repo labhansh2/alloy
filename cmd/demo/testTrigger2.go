@@ -3,6 +3,7 @@ package main
 import (
 	"alloy"
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 )
@@ -28,8 +29,14 @@ func (t *testTrigger2) Start(ctx context.Context, job chan<- alloy.Job) {
 	for {
 		select {
 		case <-ctx.Done():
+			t.logger.Printf("%s stopped", t.Id())
 			return
-		case data := <-wh.C:
+		case dataBytes := <-wh.C:
+			var data map[string]any
+			if err := json.Unmarshal(dataBytes, &data); err != nil {
+				t.logger.Fatalf("Failed to unmarshal webhook data: %v", err)
+				continue
+			}
 			job <- alloy.Job{Source: t.Id(), Payload: data}
 		}
 	}

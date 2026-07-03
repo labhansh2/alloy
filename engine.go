@@ -10,6 +10,11 @@ import (
 
 type Payload map[string]any
 
+type Job struct {
+	Source  string // this will be the id of the Trigger
+	Payload Payload
+}
+
 type Action interface {
 	Id() string
 	Init(services Services)
@@ -22,16 +27,16 @@ type Trigger interface {
 	Start(ctx context.Context, job chan<- Job)
 }
 
-type Job struct {
-	Source  string // this will be the id of the Trigger
-	Payload Payload 
-}
-
 // think about adding custom services in the future
 type Services struct {
+	// base
 	HttpClient    *http.Client   // Used for polling/triggers that make outbound HTTP requests
 	HttpServerMux *http.ServeMux // Used for incoming webhooks
 	Logger        *log.Logger
+
+	// // custom
+	// AI *clients.AI
+	// Notion *clients.Notion
 }
 
 type Engine struct {
@@ -44,10 +49,14 @@ type Engine struct {
 }
 
 func NewEngine() *Engine {
+
+	c := &http.Client{}
+
 	return &Engine{
 
 		services: Services{
-			HttpClient:    &http.Client{},
+
+			HttpClient:    c,
 			HttpServerMux: &http.ServeMux{},
 			Logger:        log.New(os.Stdout, "", log.LstdFlags),
 		},
@@ -59,16 +68,14 @@ func NewEngine() *Engine {
 	}
 }
 
-func NewEngineWithServices(services Services) *Engine {
-	return &Engine{
+func NewEngineWithServices(e *Engine, services Services) *Engine {
+	e.services = services
+	return e
+}
 
-		services: services,
-
-		triggers:   make([]Trigger, 0),
-		router:     make(map[string]Action),
-		jobs:       make(chan Job),
-		numWorkers: runtime.NumCPU(),
-	}
+func NewEngineWithBufferedJobs(e *Engine, numBuffer int) *Engine {
+	e.jobs = make(chan Job, numBuffer)
+	return e
 }
 
 func (e *Engine) Start(ctx context.Context) error {
@@ -99,7 +106,7 @@ func (e *Engine) Start(ctx context.Context) error {
 	}
 
 	for i := 0; i < e.numWorkers; i++ {
-		go e.jobWorker(ctx)
+		go e.jobWorker(i, ctx)
 	}
 
 	<-ctx.Done()
@@ -130,7 +137,10 @@ func (e *Engine) AddCustomLogger(logger *log.Logger) {
 	e.services.Logger = logger
 }
 
-func (e *Engine) jobWorker(ctx context.Context) {
+func (e *Engine) jobWorker(id int, ctx context.Context) {
+
+	e.services.Logger.Printf("Spinning up worker: %d\n", id)
+
 	for {
 		select {
 		case j, ok := <-e.jobs:
@@ -142,9 +152,10 @@ func (e *Engine) jobWorker(ctx context.Context) {
 				e.services.Logger.Printf("no action registered for trigger %q", j.Source)
 				continue
 			}
+			e.services.Logger.Printf("")
 			action.Run(ctx, j.Payload)
 		case <-ctx.Done():
-			e.services.Logger.Println("Worker stopped")
+			e.services.Logger.Printf("Worker %d stopped\n", id)
 			return
 		}
 	}
