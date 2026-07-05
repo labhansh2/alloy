@@ -50,9 +50,9 @@ func (t *TestNode6) Start(ctx context.Context, workerId string, _ <-chan alloy.J
 			}
 			job := alloy.Job{
 				Source:  t.Id(),
-				Payload: map[string]any{"post": string(data)},
+				Payload: data,
 			}
-			t.logger.Printf("[%s] %s: emitting job with payload: %v", workerId, t.Id(), job.Payload)
+			// t.logger.Printf("[%s] %s: emitting job with payload: %v", workerId, t.Id(), job.Payload)
 			outJob <- job
 		}
 	}

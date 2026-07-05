@@ -3,6 +3,7 @@ package main
 import (
 	"alloy"
 	"context"
+	"encoding/json"
 	"log"
 	"time"
 )
@@ -26,9 +27,11 @@ func (t *TestNode4) Start(ctx context.Context, workerId string, _ <-chan alloy.J
 		"something": "something else",
 	}
 
+	b, _ := json.Marshal(p)
+
 	thisJob := alloy.Job{
 		Source:  t.Id(),
-		Payload: p,
+		Payload: b,
 	}
 
 	ticker := time.NewTicker(2 * time.Second)
@@ -36,10 +39,9 @@ func (t *TestNode4) Start(ctx context.Context, workerId string, _ <-chan alloy.J
 	for {
 		select {
 		case <-ctx.Done():
-			t.logger.Printf("[%s] %s: context cancelled, shutting down", workerId, t.Id())
+			t.logger.Printf("shutting down node worker %s\n", workerId)
 			return
 		case <-ticker.C:
-			t.logger.Printf("[%s] %s: emitting job with payload: %v", workerId, t.Id(), thisJob.Payload)
 			outJob <- thisJob
 		}
 	}

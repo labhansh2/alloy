@@ -3,7 +3,6 @@ package main
 import (
 	"alloy"
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 )
@@ -37,13 +36,13 @@ func (t *TestNode5) Start(ctx context.Context, workerId string, _ <-chan alloy.J
 				t.logger.Printf("[%s] %s: webhook channel closed, shutting down", workerId, t.Id())
 				return
 			}
-			var data map[string]any
-			if err := json.Unmarshal(dataBytes, &data); err != nil {
-				t.logger.Printf("[%s] %s: error unmarshaling webhook data: %v", workerId, t.Id(), err)
-				continue
-			}
-			job := alloy.Job{Source: t.Id(), Payload: data}
-			t.logger.Printf("[%s] %s: emitting job with payload: %v", workerId, t.Id(), job.Payload)
+			// var data map[string]any
+			// if err := json.Unmarshal(dataBytes, &data); err != nil {
+			// 	t.logger.Printf("[%s] %s: error unmarshaling webhook data: %v", workerId, t.Id(), err)
+			// 	continue
+			// }
+			job := alloy.Job{Source: t.Id(), Payload: dataBytes}
+			// t.logger.Printf("[%s] %s: emitting job with payload: %v", workerId, t.Id(), job.Payload)
 			outJob <- job
 		}
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"alloy"
 	"context"
+	"encoding/json"
 	"log"
 )
 
@@ -19,6 +20,11 @@ func (t *TestNode1) Init(services alloy.Services) {
 }
 
 func (t *TestNode1) Start(ctx context.Context, workerId string, inJob <-chan alloy.Job, _ chan<- alloy.Job) {
+	
+	type someStruct struct {
+		Something string `json:"something"`
+	}
+	
 	for {
 		select {
 		case <-ctx.Done():
@@ -29,7 +35,11 @@ func (t *TestNode1) Start(ctx context.Context, workerId string, inJob <-chan all
 				t.logger.Printf("[%s] %s: input channel closed, shutting down", workerId, t.Id())
 				return
 			}
-			t.logger.Printf("[%s] %s: received job with payload: %v", workerId, t.Id(), j.Payload)
+			var s someStruct
+			e := json.Unmarshal(j.Payload, &s)
+			if e != nil {t.logger.Println("bruh bruh bruh")}
+
+			t.logger.Printf("[%s] %s: received job with payload: %v", workerId, t.Id(), s)
 		}
 	}
 }

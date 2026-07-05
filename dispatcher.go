@@ -11,7 +11,7 @@ import (
 
 var jobBuff = runtime.NumCPU()
 
-type Payload map[string]any
+type Payload []byte
 
 type Job struct {
 	Source  string
