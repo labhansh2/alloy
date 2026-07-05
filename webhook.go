@@ -19,6 +19,15 @@ func NewWebhook(ctx context.Context, httpMux *http.ServeMux, url string) *Webhoo
 	return &w
 }
 
+func NewWebhookWithBuffer(ctx context.Context, httpMux *http.ServeMux, url string, bufferSize int) *Webhook {
+	w := Webhook{
+		C: make(chan []byte, bufferSize),
+	}
+	w.listen(ctx, httpMux, url)
+
+	return &w	
+}
+
 func (wh *Webhook) listen(ctx context.Context, httpMux *http.ServeMux, url string) {
 
 	httpMux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {

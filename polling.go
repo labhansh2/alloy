@@ -20,6 +20,15 @@ func NewPoll(ctx context.Context, httpClient *http.Client, req *http.Request, po
 	return &p
 }
 
+func NewPollWithBuffer(ctx context.Context, httpClient *http.Client, req *http.Request, pollDuration time.Duration, bufferSize int) *Poll {
+	p := Poll{
+		C: make(chan []byte, bufferSize),
+	}
+	go p.run(ctx, httpClient, req, pollDuration)
+
+	return &p	
+}
+
 func (p *Poll) run(ctx context.Context, httpClient *http.Client, req *http.Request, pollDuration time.Duration) {
 
 	t := time.NewTicker(pollDuration)

@@ -26,7 +26,7 @@ todo
     - retry count
     - metadata
 - [x] buffered jobs
-- [ ] buffered C's
+- [x] buffered C's
 - [ ] custom services/ refactor services
 - [ ] draw flow
 
