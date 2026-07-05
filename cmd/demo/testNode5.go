@@ -24,22 +24,27 @@ func (t *TestNode5) Init(services alloy.Services) {
 	t.httpServerMux = services.HttpServerMux
 }
 
-func (t *TestNode5) Start(ctx context.Context, _ <-chan alloy.Job, outJob chan<- alloy.Job) {
-
+func (t *TestNode5) Start(ctx context.Context, workerId string, _ <-chan alloy.Job, outJob chan<- alloy.Job) {
 	wh := alloy.NewWebhook(ctx, t.httpServerMux, "/some")
 
 	for {
 		select {
 		case <-ctx.Done():
-			t.logger.Printf("%s stopped", t.Id())
+			t.logger.Printf("[%s] %s: context cancelled, shutting down", workerId, t.Id())
 			return
-		case dataBytes := <-wh.C:
+		case dataBytes, ok := <-wh.C:
+			if !ok {
+				t.logger.Printf("[%s] %s: webhook channel closed, shutting down", workerId, t.Id())
+				return
+			}
 			var data map[string]any
 			if err := json.Unmarshal(dataBytes, &data); err != nil {
-				t.logger.Fatalf("Failed to unmarshal webhook data: %v", err)
+				t.logger.Printf("[%s] %s: error unmarshaling webhook data: %v", workerId, t.Id(), err)
 				continue
 			}
-			outJob <- alloy.Job{Source: t.Id(), Payload: data}
+			job := alloy.Job{Source: t.Id(), Payload: data}
+			t.logger.Printf("[%s] %s: emitting job with payload: %v", workerId, t.Id(), job.Payload)
+			outJob <- job
 		}
 	}
 }

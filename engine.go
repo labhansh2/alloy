@@ -2,105 +2,119 @@ package alloy
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
 )
 
-// think about adding custom services in the future
 type Services struct {
-	HttpClient    *http.Client   // Used for polling/triggers that make outbound HTTP requests
-	HttpServerMux *http.ServeMux // Used for incoming webhooks
+	HttpClient    *http.Client
+	httpServer    *http.Server
+	HttpServerMux *http.ServeMux
 	Logger        *log.Logger
 }
 
 type Engine struct {
-	services   Services // encapsulates all the services like clients, servers and loggers
-	dispatcher Dispatcher
+	services   Services
+	dispatcher *Dispatcher
+	started    bool
 }
 
 func NewEngine() *Engine {
-	logger := log.New(os.Stdout, "", log.LstdFlags)
-	return &Engine{
-		services: Services{
-
-			HttpClient:    &http.Client{},
-			HttpServerMux: &http.ServeMux{},
-			Logger:        logger,
-		},
-		dispatcher: *NewDispatcher(logger),
-	}
+	return NewEngineWithServices(Services{})
 }
 
-func NewEngineWithServices(e *Engine, services Services) *Engine {
-	e.services = services
-	return e
+func NewEngineWithServices(services Services) *Engine {
+	if services.Logger == nil {
+		services.Logger = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
+	}
+	if services.HttpClient == nil {
+		services.HttpClient = &http.Client{}
+	}
+	if services.HttpServerMux == nil {
+		services.HttpServerMux = &http.ServeMux{}
+	}
+	return &Engine{
+		services:   services,
+		dispatcher: NewDispatcher(services.Logger),
+	}
 }
 
 func (e *Engine) Start(ctx context.Context) error {
-	e.services.Logger.Println("Starting Engine")
-	e.dispatcher.SpinNodeWorkers(ctx)
-
-	if e.services.HttpServerMux != nil {
-		server := &http.Server{
-			Addr:    ":8080",
-			Handler: e.services.HttpServerMux,
-		}
-
-		go func() {
-			<-ctx.Done()
-			server.Shutdown(context.Background())
-		}()
-
-		go func() {
-			if err := server.ListenAndServe(); err != nil &&
-				err != http.ErrServerClosed {
-				e.services.Logger.Printf("server error: %v", err)
-			}
-		}()
+	if e.started {
+		return errors.New("engine already running")
 	}
 
-	e.dispatcher.Start(ctx)
-	<-ctx.Done()
+	e.services.Logger.Println("starting engine")
 
-	e.Shutdown()
-	e.services.Logger.Println("Engine shutting down")
+	if e.services.HttpServerMux == nil {
+		return errors.New("HttpServerMux is missing in services")
+	}
+
+	e.services.httpServer = &http.Server{
+		Addr:    ":8080",
+		Handler: e.services.HttpServerMux,
+	}
+
+	go func() {
+		if err := e.services.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			e.services.Logger.Printf("server error: %v", err)
+		}
+	}()
+
+	e.dispatcher.spinUpNodeWorkers(ctx)
+	e.dispatcher.run(ctx)
+	e.started = true
+
+	<- ctx.Done()
 	return nil
 }
 
 func (e *Engine) RegisterNode(node Node) error {
+	if e.started {
+		return errors.New("cannot register node on a running engine")
+	}
 	node.Init(e.services)
-	err := e.dispatcher.AddNode(node)
-	return err
+	return e.dispatcher.addNode(node)
 }
 
 func (e *Engine) RegisterNodes(nodes []Node) error {
 	for _, n := range nodes {
-		err := e.RegisterNode(n)
-		if err != nil {
+		if err := e.RegisterNode(n); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (e *Engine) RegisterConnection(source string, destination string) {
-	e.dispatcher.AddConnection(source, destination)
+func (e *Engine) RegisterConnection(source, destination string) error {
+	if e.started {
+		return errors.New("cannot register connection on a running eninge")
+	}
+	return e.dispatcher.addConnection(source, destination)
 }
 
-func (e *Engine) RegisterConnections(connections map[string][]string) {
+func (e *Engine) RegisterConnections(connections map[string][]string) error {
 	for src, dsts := range connections {
 		for _, dst := range dsts {
-			e.RegisterConnection(src, dst)
+			if err := e.RegisterConnection(src, dst); err != nil {
+				return err
+			}
 		}
 	}
-}
-
-func (e *Engine) AddCustomLogger(logger *log.Logger) {
-	e.services.Logger = logger
+	return nil
 }
 
 func (e *Engine) Shutdown() {
-	//might require more cleanups
+	e.log("shutting down engine")
+	e.dispatcher.shutdown()
 	e.services.HttpClient.CloseIdleConnections()
+	e.services.httpServer.Close()
+}
+
+func (e *Engine) log(format string, args ...any) {
+	if e.services.Logger != nil {
+		e.services.Logger.Printf(format, args...)
+	}
 }

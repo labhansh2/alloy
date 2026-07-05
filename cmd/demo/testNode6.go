@@ -15,15 +15,14 @@ type TestNode6 struct {
 
 func (t *TestNode6) Id() string { return "TestNode6" }
 
-func (t *TestNode6) NumInstances() int { return  1}
+func (t *TestNode6) NumInstances() int { return 1 }
 
 func (t *TestNode6) Init(services alloy.Services) {
 	t.logger = services.Logger
 	t.httpClient = services.HttpClient
 }
 
-func (t *TestNode6) Start(ctx context.Context, _ <-chan alloy.Job, outJob chan<- alloy.Job) {
-
+func (t *TestNode6) Start(ctx context.Context, workerId string, _ <-chan alloy.Job, outJob chan<- alloy.Job) {
 	req, err := http.NewRequestWithContext(
 		context.Background(),
 		http.MethodGet,
@@ -41,14 +40,20 @@ func (t *TestNode6) Start(ctx context.Context, _ <-chan alloy.Job, outJob chan<-
 
 	for {
 		select {
-		case data := <-p.C:
-			m := map[string]any{"post": string(data)}
-			outJob <- alloy.Job{
-				Source:  t.Id(),
-				Payload: m,
-			}
 		case <-ctx.Done():
+			t.logger.Printf("[%s] %s: context cancelled, shutting down", workerId, t.Id())
 			return
+		case data, ok := <-p.C:
+			if !ok {
+				t.logger.Printf("[%s] %s: poll channel closed, shutting down", workerId, t.Id())
+				return
+			}
+			job := alloy.Job{
+				Source:  t.Id(),
+				Payload: map[string]any{"post": string(data)},
+			}
+			t.logger.Printf("[%s] %s: emitting job with payload: %v", workerId, t.Id(), job.Payload)
+			outJob <- job
 		}
 	}
 }

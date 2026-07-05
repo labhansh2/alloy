@@ -17,15 +17,11 @@ func (t *TestNode4) Id() string {
 
 func (t *TestNode4) NumInstances() int { return 1 }
 
-func (t *TestNode4) Init(Services alloy.Services) {
-	t.logger = Services.Logger
-	t.logger.Printf("Initializing %s", t.Id())
+func (t *TestNode4) Init(services alloy.Services) {
+	t.logger = services.Logger
 }
 
-func (t *TestNode4) Start(ctx context.Context, _ <-chan alloy.Job, outJob chan<- alloy.Job) {
-
-	t.logger.Printf("%s started", t.Id())
-
+func (t *TestNode4) Start(ctx context.Context, workerId string, _ <-chan alloy.Job, outJob chan<- alloy.Job) {
 	p := map[string]any{
 		"something": "something else",
 	}
@@ -36,14 +32,15 @@ func (t *TestNode4) Start(ctx context.Context, _ <-chan alloy.Job, outJob chan<-
 	}
 
 	ticker := time.NewTicker(2 * time.Second)
+
 	for {
 		select {
 		case <-ctx.Done():
-			t.logger.Printf("%s stopped", t.Id())
+			t.logger.Printf("[%s] %s: context cancelled, shutting down", workerId, t.Id())
 			return
 		case <-ticker.C:
+			t.logger.Printf("[%s] %s: emitting job with payload: %v", workerId, t.Id(), thisJob.Payload)
 			outJob <- thisJob
 		}
 	}
-
 }

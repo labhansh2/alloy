@@ -26,14 +26,25 @@ func main() {
 	n5 := &TestNode5{}
 	n6 := &TestNode6{}
 
-	engine.RegisterNodes([]alloy.Node{n1, n2, n3, n4, n5, n6})
+	if err := engine.RegisterNodes([]alloy.Node{n1, n2, n3, n4, n5, n6}); err != nil {
+		log.Fatal(err)
+	}
 
-	engine.RegisterConnection(n4.Id(), n1.Id())
-	engine.RegisterConnection(n4.Id(), n3.Id())
-	engine.RegisterConnection(n5.Id(), n2.Id())
-	engine.RegisterConnection(n6.Id(), n3.Id())
+	if err := engine.RegisterConnection(n4.Id(), n1.Id()); err != nil {
+		log.Fatal(err)
+	}
+	if err := engine.RegisterConnection(n4.Id(), n3.Id()); err != nil {
+		log.Fatal(err)
+	}
+	if err := engine.RegisterConnection(n5.Id(), n2.Id()); err != nil {
+		log.Fatal(err)
+	}
+	if err := engine.RegisterConnection(n6.Id(), n3.Id()); err != nil {
+		log.Fatal(err)
+	}
 
 	if err := engine.Start(ctx); err != nil {
 		log.Fatal(err)
 	}
+	engine.Shutdown()
 }
