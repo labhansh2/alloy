@@ -15,8 +15,10 @@ todo
 - [x] better engine sync
 - [x] trigger chainging <-
 - [x] dispatcher
-- [ ] polish dispatcher
-- [ ] payload as byte stream?
+- [x] polish dispatcher
+- [x] payload as btytes
+- [ ] payload as byte 'stream?'
+- [ ] ngrok tunneling
 - [ ] streaming?
 - [ ] ci
 - [ ] optimized deployment pipeline for a common user
@@ -29,6 +31,10 @@ todo
 - [x] buffered C's
 - [ ] custom services/ refactor services
 - [ ] draw flow
+- [ ] clients
+    - [x] notion
+    - [x] ai
+    - [ ] broswerbase
 
 flows
 - [ ] bang
