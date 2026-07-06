@@ -58,12 +58,12 @@ func (c *Client) GetBlockChildren(ctx context.Context, blockID string, params Ge
 	if params.PageSize > 0 {
 		query.Set("page_size", strconv.Itoa(params.PageSize))
 	}
-	req, err := c.newRequest(http.MethodGet, "/v1/blocks/"+blockID+"/children", query, nil)
+	req, err := c.NewRequest(http.MethodGet, "/v1/blocks/"+blockID+"/children", query, nil)
 	if err != nil {
 		return nil, err
 	}
 	var list List[Block]
-	if err := c.do(ctx, req, &list); err != nil {
+	if err := c.Do(ctx, req, &list); err != nil {
 		return nil, err
 	}
 	return &list, nil

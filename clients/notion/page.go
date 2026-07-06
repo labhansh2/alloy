@@ -34,12 +34,12 @@ func (c *Client) GetPage(ctx context.Context, pageID string, params GetPageParam
 	for _, prop := range params.FilterProperties {
 		query.Add("filter_properties", prop)
 	}
-	req, err := c.newRequest(http.MethodGet, "/v1/pages/"+pageID, query, nil)
+	req, err := c.NewRequest(http.MethodGet, "/v1/pages/"+pageID, query, nil)
 	if err != nil {
 		return nil, err
 	}
 	var page Page
-	if err := c.do(ctx, req, &page); err != nil {
+	if err := c.Do(ctx, req, &page); err != nil {
 		return nil, err
 	}
 	return &page, nil
@@ -54,12 +54,12 @@ type UpdatePageParams struct {
 
 // UpdatePage updates a page's properties, icon, cover, or trash status.
 func (c *Client) UpdatePage(ctx context.Context, pageID string, params UpdatePageParams) (*Page, error) {
-	req, err := c.newRequest(http.MethodPatch, "/v1/pages/"+pageID, nil, params)
+	req, err := c.NewRequest(http.MethodPatch, "/v1/pages/"+pageID, nil, params)
 	if err != nil {
 		return nil, err
 	}
 	var page Page
-	if err := c.do(ctx, req, &page); err != nil {
+	if err := c.Do(ctx, req, &page); err != nil {
 		return nil, err
 	}
 	return &page, nil
@@ -73,12 +73,12 @@ type PageMarkdown struct {
 
 // RetrievePageMarkdown returns a page's content as enhanced markdown.
 func (c *Client) RetrievePageMarkdown(ctx context.Context, pageID string) (*PageMarkdown, error) {
-	req, err := c.newRequest(http.MethodGet, "/v1/pages/"+pageID+"/markdown", nil, nil)
+	req, err := c.NewRequest(http.MethodGet, "/v1/pages/"+pageID+"/markdown", nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	var md PageMarkdown
-	if err := c.do(ctx, req, &md); err != nil {
+	if err := c.Do(ctx, req, &md); err != nil {
 		return nil, err
 	}
 	return &md, nil

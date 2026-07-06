@@ -17,12 +17,12 @@ type User struct {
 
 // GetSelf returns the bot user for the configured token.
 func (c *Client) GetSelf(ctx context.Context) (*User, error) {
-	req, err := c.newRequest(http.MethodGet, "/v1/users/me", nil, nil)
+	req, err := c.NewRequest(http.MethodGet, "/v1/users/me", nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	var user User
-	if err := c.do(ctx, req, &user); err != nil {
+	if err := c.Do(ctx, req, &user); err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -30,12 +30,12 @@ func (c *Client) GetSelf(ctx context.Context) (*User, error) {
 
 // GetUser retrieves a user by ID.
 func (c *Client) GetUser(ctx context.Context, userID string) (*User, error) {
-	req, err := c.newRequest(http.MethodGet, "/v1/users/"+userID, nil, nil)
+	req, err := c.NewRequest(http.MethodGet, "/v1/users/"+userID, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	var user User
-	if err := c.do(ctx, req, &user); err != nil {
+	if err := c.Do(ctx, req, &user); err != nil {
 		return nil, err
 	}
 	return &user, nil

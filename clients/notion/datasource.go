@@ -25,12 +25,12 @@ type DataSource struct {
 
 // GetDataSource retrieves a data source schema.
 func (c *Client) GetDataSource(ctx context.Context, dataSourceID string) (*DataSource, error) {
-	req, err := c.newRequest(http.MethodGet, "/v1/data_sources/"+dataSourceID, nil, nil)
+	req, err := c.NewRequest(http.MethodGet, "/v1/data_sources/"+dataSourceID, nil, nil)
 	if err != nil {
 		return nil, err
 	}
 	var ds DataSource
-	if err := c.do(ctx, req, &ds); err != nil {
+	if err := c.Do(ctx, req, &ds); err != nil {
 		return nil, err
 	}
 	return &ds, nil
@@ -45,12 +45,12 @@ type QueryDataSourceParams struct {
 
 // QueryDataSource returns pages in a data source.
 func (c *Client) QueryDataSource(ctx context.Context, dataSourceID string, params QueryDataSourceParams) (*List[Page], error) {
-	req, err := c.newRequest(http.MethodPost, "/v1/data_sources/"+dataSourceID+"/query", nil, params)
+	req, err := c.NewRequest(http.MethodPost, "/v1/data_sources/"+dataSourceID+"/query", nil, params)
 	if err != nil {
 		return nil, err
 	}
 	var list List[Page]
-	if err := c.do(ctx, req, &list); err != nil {
+	if err := c.Do(ctx, req, &list); err != nil {
 		return nil, err
 	}
 	return &list, nil

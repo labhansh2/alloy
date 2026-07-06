@@ -16,12 +16,12 @@ type SearchParams struct {
 
 // Search returns pages and data sources shared with the integration.
 func (c *Client) Search(ctx context.Context, params SearchParams) (*List[json.RawMessage], error) {
-	req, err := c.newRequest(http.MethodPost, "/v1/search", nil, params)
+	req, err := c.NewRequest(http.MethodPost, "/v1/search", nil, params)
 	if err != nil {
 		return nil, err
 	}
 	var list List[json.RawMessage]
-	if err := c.do(ctx, req, &list); err != nil {
+	if err := c.Do(ctx, req, &list); err != nil {
 		return nil, err
 	}
 	return &list, nil
