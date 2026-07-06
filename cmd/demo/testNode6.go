@@ -2,6 +2,7 @@ package main
 
 import (
 	"alloy"
+	"alloy/clients"
 	"context"
 	"log"
 	"net/http"
@@ -23,20 +24,13 @@ func (t *TestNode6) Init(services alloy.Services) {
 }
 
 func (t *TestNode6) Start(ctx context.Context, workerId string, _ <-chan alloy.Job, outJob chan<- alloy.Job) {
-	req, err := http.NewRequestWithContext(
-		context.Background(),
-		http.MethodGet,
-		"https://jsonplaceholder.typicode.com/posts/1",
-		nil,
-	)
+	c := clients.New("", "https://jsonplaceholder.typicode.com", clients.WithHTTPClient(t.httpClient))
+	req, err := c.NewRequest(http.MethodGet, "/posts/1", nil, nil)
 	if err != nil {
 		panic(err)
 	}
 
-	req.Header.Set("User-Agent", "MyBot/1.0")
-	req.Header.Set("Accept", "application/json")
-
-	p := alloy.NewPoll(ctx, t.httpClient, req, 2*time.Second)
+	p := alloy.NewPoll(ctx, c, req, 2*time.Second)
 
 	for {
 		select {
@@ -52,7 +46,6 @@ func (t *TestNode6) Start(ctx context.Context, workerId string, _ <-chan alloy.J
 				Source:  t.Id(),
 				Payload: data,
 			}
-			// t.logger.Printf("[%s] %s: emitting job with payload: %v", workerId, t.Id(), job.Payload)
 			outJob <- job
 		}
 	}

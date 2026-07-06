@@ -123,25 +123,34 @@ func (c *Client) NewRequest(method, path string, query url.Values, body any) (*h
 	return req, nil
 }
 
-// Do executes a request and decodes a JSON response into dst.
-func (c *Client) Do(ctx context.Context, req *http.Request, dst any) error {
+// DoRaw executes a request and returns the raw response body.
+func (c *Client) DoRaw(ctx context.Context, req *http.Request) ([]byte, error) {
 	if ctx != nil {
 		req = req.WithContext(ctx)
 	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if resp.StatusCode >= 400 {
-		return c.decodeError(resp.StatusCode, data)
+		return nil, c.decodeError(resp.StatusCode, data)
+	}
+	return data, nil
+}
+
+// Do executes a request and decodes a JSON response into dst.
+func (c *Client) Do(ctx context.Context, req *http.Request, dst any) error {
+	data, err := c.DoRaw(ctx, req)
+	if err != nil {
+		return err
 	}
 	if dst == nil {
 		return nil

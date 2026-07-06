@@ -48,6 +48,10 @@ func (c *Client) Do(ctx context.Context, req *http.Request, dst any) error {
 	return c.api().Do(ctx, req, dst)
 }
 
+func (c *Client) DoRaw(ctx context.Context, req *http.Request) ([]byte, error) {
+	return c.api().DoRaw(ctx, req)
+}
+
 func decodeAPIError(status int, body []byte) error {
 	var apiErr APIError
 	if err := json.Unmarshal(body, &apiErr); err != nil {
