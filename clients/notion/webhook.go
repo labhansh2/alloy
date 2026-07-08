@@ -1,5 +1,13 @@
 package notion
 
+import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
+	"encoding/json"
+)
+
 type WebhookPayload struct {
 	Id             string         `json:"id"`               // UUID
 	Timestamp      string         `json:"timestamp"`        // ISO 8601 formatted time
@@ -66,3 +74,29 @@ const (
 	EventCommentDeleted            EventType = "comment.deleted"
 	EventCommentUpdated            EventType = "comment.updated"
 )
+
+type VerificationHandshake struct {
+	VerificationToken string `json:"verification_token"`
+}
+
+func VerificationTokenFromBody(body []byte) (string, bool) {
+	var handshake VerificationHandshake
+	if err := json.Unmarshal(body, &handshake); err != nil || handshake.VerificationToken == "" {
+		return "", false
+	}
+	return handshake.VerificationToken, true
+}
+
+func SignWebhookPayload(body []byte, verificationToken string) string {
+	mac := hmac.New(sha256.New, []byte(verificationToken))
+	mac.Write(body)
+	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
+}
+
+func VerifyWebhookSignature(body []byte, signature, verificationToken string) bool {
+	if signature == "" || verificationToken == "" {
+		return false
+	}
+	expected := SignWebhookPayload(body, verificationToken)
+	return subtle.ConstantTimeCompare([]byte(expected), []byte(signature)) == 1
+}
