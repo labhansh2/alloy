@@ -1,6 +1,7 @@
 package alloy
 
 import (
+	"alloy/clients"
 	"context"
 	"errors"
 	"log"
@@ -9,15 +10,25 @@ import (
 )
 
 type Services struct {
+	// base servies
+	// these cannot be nil
 	HttpClient    *http.Client
 	httpServer    *http.Server
 	HttpServerMux *http.ServeMux
 	Logger        *log.Logger
+	Tunnel        *NgrokTunnel
+
+	// custom clients
+	// users can use these to have additional global clients
+	// can find a better way to add custom clients later
+	Notion *clients.Client
+	AI     *clients.Client
 }
 
 type Engine struct {
 	services   Services
 	dispatcher *Dispatcher
+	tunnel     *Tunnel
 	started    bool
 }
 
@@ -52,22 +63,38 @@ func (e *Engine) Start(ctx context.Context) error {
 		return errors.New("HttpServerMux is missing in services")
 	}
 
+	tunnel, err := startTunnel(ctx, e.services.Tunnel, e.services.Logger)
+	if err != nil {
+		return err
+	}
+	e.tunnel = tunnel
+
 	e.services.httpServer = &http.Server{
-		Addr:    ":8080",
 		Handler: e.services.HttpServerMux,
 	}
 
-	go func() {
-		if err := e.services.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			e.services.Logger.Printf("server error: %v", err)
-		}
-	}()
+	if tunnel != nil {
+		go func() {
+			if err := e.services.httpServer.Serve(tunnel.listener); err != nil && err != http.ErrServerClosed {
+				e.services.Logger.Printf("server error: %v", err)
+			}
+		}()
+	} else {
+		e.services.httpServer.Addr = ":8080"
+		go func() {
+			if err := e.services.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				e.services.Logger.Printf("server error: %v", err)
+			}
+		}()
+	}
+
+	e.services.Logger.Printf("http server listening at %s", e.PublicURL())
 
 	e.dispatcher.spinUpNodeWorkers(ctx)
 	e.dispatcher.run(ctx)
 	e.started = true
 
-	<- ctx.Done()
+	<-ctx.Done()
 	return nil
 }
 
@@ -106,11 +133,21 @@ func (e *Engine) RegisterConnections(connections map[string][]string) error {
 	return nil
 }
 
+func (e *Engine) PublicURL() string {
+	if e.tunnel != nil {
+		return e.tunnel.URL()
+	}
+	return "http://localhost:8080"
+}
+
 func (e *Engine) Shutdown() {
 	e.log("shutting down engine")
 	e.dispatcher.shutdown()
 	e.services.HttpClient.CloseIdleConnections()
 	e.services.httpServer.Close()
+	if e.tunnel != nil {
+		e.tunnel.Close()
+	}
 }
 
 func (e *Engine) log(format string, args ...any) {

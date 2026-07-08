@@ -31,7 +31,7 @@ type Dispatcher struct {
 	inChannels map[string]chan Job
 	outJobs    chan Job
 	logger     *log.Logger
-	wg sync.WaitGroup
+	wg         sync.WaitGroup
 }
 
 func NewDispatcher(logger *log.Logger) *Dispatcher {
@@ -89,9 +89,7 @@ func (d *Dispatcher) spinUpNodeWorkers(ctx context.Context) error {
 		d.inChannels[id] = ch
 		d.logger.Printf("spinning up %d instances of %s", node.NumInstances(), id)
 		for i := range node.NumInstances() {
-			// d.wg.Go(func(){ 
-			go node.Start(ctx, node.Id() + strconv.Itoa(i), ch, d.outJobs)
-			// })
+			go node.Start(ctx, node.Id()+strconv.Itoa(i), ch, d.outJobs)
 		}
 	}
 	return nil
@@ -99,12 +97,12 @@ func (d *Dispatcher) spinUpNodeWorkers(ctx context.Context) error {
 
 func (d *Dispatcher) run(ctx context.Context) {
 	for i := range jobBuff {
-		d.logger.Printf("deploying router %d\n", i)	
-		d.wg.Go(func(){d.route(ctx, i)})
+		d.logger.Printf("deploying router %d\n", i)
+		d.wg.Go(func() { d.route(ctx, i) })
 	}
 }
 
-func (d *Dispatcher) route(ctx context.Context, routerId int, ) {
+func (d *Dispatcher) route(ctx context.Context, routerId int) {
 	for {
 		select {
 		case <-ctx.Done():
