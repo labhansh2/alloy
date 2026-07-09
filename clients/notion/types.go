@@ -35,20 +35,20 @@ type UserRef struct {
 }
 
 type Parent struct {
-	Type          string `json:"type"`
-	PageID        string `json:"page_id,omitempty"`
-	DatabaseID    string `json:"database_id,omitempty"`
-	DataSourceID  string `json:"data_source_id,omitempty"`
-	Workspace     bool   `json:"workspace,omitempty"`
-	BlockID       string `json:"block_id,omitempty"`
+	Type         string `json:"type"`
+	PageID       string `json:"page_id,omitempty"`
+	DatabaseID   string `json:"database_id,omitempty"`
+	DataSourceID string `json:"data_source_id,omitempty"`
+	Workspace    bool   `json:"workspace,omitempty"`
+	BlockID      string `json:"block_id,omitempty"`
 }
 
 type RichText struct {
-	Type        string          `json:"type"`
-	Text        *RichTextText   `json:"text,omitempty"`
-	Annotations RichTextAnnot   `json:"annotations"`
-	PlainText   string          `json:"plain_text"`
-	Href        *string         `json:"href"`
+	Type        string        `json:"type"`
+	Text        *RichTextText `json:"text,omitempty"`
+	Annotations RichTextAnnot `json:"annotations"`
+	PlainText   string        `json:"plain_text"`
+	Href        *string       `json:"href"`
 }
 
 type RichTextText struct {

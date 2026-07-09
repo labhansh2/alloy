@@ -37,7 +37,6 @@ func main() {
 	pageUpdate := &nodes.DetectPageUpdate{}
 
 	engine.RegisterNodes([]alloy.Node{notionEvent, pageUpdate})
-
 	engine.RegisterConnection(notionEvent.Id(), pageUpdate.Id())
 
 	if err := engine.Start(ctx); err != nil {

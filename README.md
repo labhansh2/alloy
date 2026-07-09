@@ -10,23 +10,14 @@ todo
     - [x] webhook (lisen using serverMux)
     - [x] polling (ticker + http do)
     - [x] tickers (prolly just use the default one)
-    - [ ] timed exec
+    - [x] timed exec (just use time.Until in a timer)
 - [x] error handling
 - [x] better engine sync
 - [x] trigger chainging <-
 - [x] dispatcher
 - [x] polish dispatcher
 - [x] payload as btytes
-- [ ] payload as byte 'stream?'
 - [x] ngrok tunneling
-- [ ] streaming?
-- [ ] ci
-- [ ] optimized deployment pipeline for a common user
-- [ ] better jobs logging and schema
-    - timestamps
-    - trace ID
-    - retry count
-    - metadata
 - [x] buffered jobs
 - [x] buffered C's
 - [ ] custom services/ refactor services
@@ -35,6 +26,14 @@ todo
     - [x] notion
     - [x] ai
     - [ ] broswerbase
+- [ ] payload as byte 'stream?'
+- [ ] ci
+- [ ] optimized deployment pipeline for a common user
+- [ ] better jobs logging and schema
+    - timestamps
+    - trace ID
+    - retry count
+    - metadata
 
 flows
 - [ ] bang

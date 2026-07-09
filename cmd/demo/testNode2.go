@@ -36,13 +36,15 @@ func (t *TestNode2) Start(ctx context.Context, workerId string, inJob <-chan all
 			return
 		case j, ok := <-inJob:
 			if !ok {
-				t.logger.Printf("shutting down worker: %s (job chan closed)" , workerId)
+				t.logger.Printf("shutting down worker: %s (job chan closed)", workerId)
 				return
 			}
 
 			var r random
 			e := json.Unmarshal(j.Payload, &r)
-			if e != nil {t.logger.Println("Bruh")}
+			if e != nil {
+				t.logger.Println("Bruh")
+			}
 			t.logger.Printf("Recieved payload %v", r)
 			// resp, err := t.httpClient.Get("http://localhost:8000/")
 			// if err != nil {
