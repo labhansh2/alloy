@@ -17,7 +17,7 @@ func main() {
 	)
 	defer stop()
 
-	engine := alloy.NewEngine()
+	engine, _ := alloy.NewEngine(alloy.Services{})
 
 	n1 := &TestNode1{}
 	n2 := &TestNode2{}
@@ -46,5 +46,5 @@ func main() {
 	if err := engine.Start(ctx); err != nil {
 		log.Fatal(err)
 	}
-	engine.Shutdown()
+	defer engine.Shutdown()
 }

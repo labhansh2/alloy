@@ -8,7 +8,7 @@ import (
 	"golang.ngrok.com/ngrok/v2"
 )
 
-type NgrokTunnel struct {
+type TunnelCfg struct {
 	Authtoken string
 	Domain    string
 }
@@ -18,9 +18,9 @@ type Tunnel struct {
 	url      string
 }
 
-func startTunnel(ctx context.Context, cfg *NgrokTunnel, logger *log.Logger) (*Tunnel, error) {
+func startTunnel(ctx context.Context, cfg *TunnelCfg, logger *log.Logger) (*Tunnel, error) {
 	if cfg == nil {
-		return nil, nil
+		return nil, errors.New("ngrok tunnel requires an authtoken")
 	}
 	if cfg.Authtoken == "" {
 		return nil, errors.New("ngrok tunnel requires an authtoken")

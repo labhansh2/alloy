@@ -23,15 +23,17 @@ func main() {
 	)
 	defer stop()
 
-	services := alloy.Services{}
-	if token := os.Getenv("NGROK_AUTHTOKEN"); token != "" {
-		services.Tunnel = &alloy.NgrokTunnel{
-			Authtoken: token,
+	engine, err := alloy.NewEngine(
+		alloy.Services{},
+		alloy.WithTunneling(ctx, &alloy.TunnelCfg{
+			Authtoken: os.Getenv("NGROK_AUTHTOKEN"),
 			Domain:    os.Getenv("NGROK_DOMAIN"),
-		}
-	}
+		}),
+	)
 
-	engine := alloy.NewEngineWithServices(services)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	notionEvent := &nodes.NotionEvent{}
 	pageUpdate := &nodes.DetectPageUpdate{}

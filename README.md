@@ -20,12 +20,13 @@ todo
 - [x] ngrok tunneling
 - [x] buffered jobs
 - [x] buffered C's
-- [ ] custom services/ refactor services
+- [x] custom services/ refactor services
 - [ ] draw flow
 - [ ] clients
     - [x] notion
     - [x] ai
     - [ ] broswerbase
+    - [ ] browseruse
 - [ ] payload as byte 'stream?'
 - [ ] ci
 - [ ] optimized deployment pipeline for a common user

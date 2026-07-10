@@ -32,12 +32,12 @@ func (n *NotionEvent) Start(ctx context.Context, workerId string, _ <-chan alloy
 	n.logger.Printf("starting node worker %s\n", workerId)
 
 	secret := os.Getenv("NOTION_VERIFICATION_TOKEN")
-	opts := []alloy.WebhookOption{
+
+	wh := alloy.NewWebhook(ctx, n.serverMux, notionWebhookPath,
 		alloy.RequiresAuth(),
 		alloy.WithWebhookLogger(n.logger),
 		alloy.WithWebhookVerify(notion.RequestVerifier(secret, n.logger)),
-	}
-	wh := alloy.NewWebhook(ctx, n.serverMux, notionWebhookPath, opts...)
+	)
 
 	for {
 		select {

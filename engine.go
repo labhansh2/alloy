@@ -16,27 +16,44 @@ type Services struct {
 	httpServer    *http.Server
 	HttpServerMux *http.ServeMux
 	Logger        *log.Logger
-	Tunnel        *NgrokTunnel
 
-	// custom clients
+	// todo: low: custom clients
 	// users can use these to have additional global clients
 	// can find a better way to add custom clients later
-	Notion *clients.Client
-	AI     *clients.Client
+	// i think it should be okay for nodes to initialize their own services in init with the base services
+	// however this is an option in case you want a global deposit of custom services
+	Clients map[string]*clients.Client
+}
+
+type EngineSettings struct {
+	tunnelCfg *TunnelCfg
+	tunnel    *Tunnel
+}
+
+type EngineOptions func(Services, *EngineSettings) error
+
+func WithTunneling(ctx context.Context, cfg *TunnelCfg) EngineOptions {
+	return func(s Services, opt *EngineSettings) error {
+		t, err := startTunnel(ctx, cfg, s.Logger)
+		if err != nil {
+			return err
+		}
+		opt.tunnel = t
+		opt.tunnelCfg = cfg
+		return nil
+	}
 }
 
 type Engine struct {
 	services   Services
 	dispatcher *Dispatcher
-	tunnel     *Tunnel
 	started    bool
+	settings   EngineSettings
 }
 
-func NewEngine() *Engine {
-	return NewEngineWithServices(Services{})
-}
+func NewEngine(services Services, opts ...EngineOptions) (*Engine, error) {
 
-func NewEngineWithServices(services Services) *Engine {
+	// default mandatory services
 	if services.Logger == nil {
 		services.Logger = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 	}
@@ -46,10 +63,26 @@ func NewEngineWithServices(services Services) *Engine {
 	if services.HttpServerMux == nil {
 		services.HttpServerMux = &http.ServeMux{}
 	}
+	if services.httpServer == nil {
+		services.httpServer = &http.Server{
+			Handler: services.HttpServerMux,
+		}
+	}
+
+	var settings EngineSettings
+	for _, opt := range opts {
+		err := opt(services, &settings)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &Engine{
 		services:   services,
 		dispatcher: NewDispatcher(services.Logger),
-	}
+		started:    false,
+		settings:   settings,
+	}, nil
 }
 
 func (e *Engine) Start(ctx context.Context) error {
@@ -59,23 +92,9 @@ func (e *Engine) Start(ctx context.Context) error {
 
 	e.services.Logger.Println("starting engine")
 
-	if e.services.HttpServerMux == nil {
-		return errors.New("HttpServerMux is missing in services")
-	}
-
-	tunnel, err := startTunnel(ctx, e.services.Tunnel, e.services.Logger)
-	if err != nil {
-		return err
-	}
-	e.tunnel = tunnel
-
-	e.services.httpServer = &http.Server{
-		Handler: e.services.HttpServerMux,
-	}
-
-	if tunnel != nil {
+	if e.settings.tunnel != nil {
 		go func() {
-			if err := e.services.httpServer.Serve(tunnel.listener); err != nil && err != http.ErrServerClosed {
+			if err := e.services.httpServer.Serve(e.settings.tunnel.listener); err != nil && err != http.ErrServerClosed {
 				e.services.Logger.Printf("server error: %v", err)
 			}
 		}()
@@ -95,6 +114,7 @@ func (e *Engine) Start(ctx context.Context) error {
 	e.started = true
 
 	<-ctx.Done()
+	e.started = false
 	return nil
 }
 
@@ -133,9 +153,17 @@ func (e *Engine) RegisterConnections(connections map[string][]string) error {
 	return nil
 }
 
+func (e *Engine) AddGlobalService(id string, service *clients.Client) error {
+	if _, ok := e.services.Clients[id]; ok {
+		return errors.New("services with id:" + id + "already exists")
+	}
+	e.services.Clients[id] = service
+	return nil
+}
+
 func (e *Engine) PublicURL() string {
-	if e.tunnel != nil {
-		return e.tunnel.URL()
+	if e.settings.tunnel != nil {
+		return e.settings.tunnel.URL()
 	}
 	return "http://localhost:8080"
 }
@@ -145,8 +173,8 @@ func (e *Engine) Shutdown() {
 	e.dispatcher.shutdown()
 	e.services.HttpClient.CloseIdleConnections()
 	e.services.httpServer.Close()
-	if e.tunnel != nil {
-		e.tunnel.Close()
+	if e.settings.tunnel != nil {
+		e.settings.tunnel.Close()
 	}
 }
 
