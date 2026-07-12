@@ -79,17 +79,6 @@ func NewWebhook(
 	return &w
 }
 
-func NewWebhookWithBuffer(
-	ctx context.Context,
-	httpMux *http.ServeMux,
-	path string,
-	bufferSize int,
-	opts ...WebhookOption,
-) *Webhook {
-	all := append([]WebhookOption{WithWebhookBuffer(bufferSize)}, opts...)
-	return NewWebhook(ctx, httpMux, path, all...)
-}
-
 func (wh *Webhook) listen(
 	ctx context.Context,
 	httpMux *http.ServeMux,

@@ -21,7 +21,7 @@ type Job struct {
 type Node interface {
 	Id() string
 	NumInstances() int
-	Init(services Services)
+	Init(services Services) error
 	Start(ctx context.Context, workerId string, inJob <-chan Job, outJob chan<- Job)
 }
 
@@ -84,6 +84,7 @@ func (d *Dispatcher) spinUpNodeWorkers(ctx context.Context) error {
 	if err := d.validateGraph(); err != nil {
 		return err
 	}
+
 	for id, node := range d.nodes {
 		ch := make(chan Job, node.NumInstances())
 		d.inChannels[id] = ch

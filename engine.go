@@ -1,7 +1,6 @@
 package alloy
 
 import (
-	"alloy/clients"
 	"context"
 	"errors"
 	"log"
@@ -11,18 +10,15 @@ import (
 
 type Services struct {
 	// base servies
-	// these cannot be nil
 	HttpClient    *http.Client
 	httpServer    *http.Server
 	HttpServerMux *http.ServeMux
 	Logger        *log.Logger
 
-	// todo: low: custom clients
-	// users can use these to have additional global clients
-	// can find a better way to add custom clients later
-	// i think it should be okay for nodes to initialize their own services in init with the base services
-	// however this is an option in case you want a global deposit of custom services
-	Clients map[string]*clients.Client
+	// custom services
+	// todo: high: keep custom services seperate from the egnine
+	// engine doesn't require services, nodes do
+	Clients map[string]any
 }
 
 type EngineSettings struct {
@@ -68,7 +64,11 @@ func NewEngine(services Services, opts ...EngineOptions) (*Engine, error) {
 			Handler: services.HttpServerMux,
 		}
 	}
+	if services.Clients == nil {
+		services.Clients = make(map[string]any)
+	}
 
+	// todo : high: add tunneling settings
 	var settings EngineSettings
 	for _, opt := range opts {
 		err := opt(services, &settings)
@@ -122,7 +122,9 @@ func (e *Engine) RegisterNode(node Node) error {
 	if e.started {
 		return errors.New("cannot register node on a running engine")
 	}
-	node.Init(e.services)
+	if err := node.Init(e.services); err != nil {
+		return err
+	}
 	return e.dispatcher.addNode(node)
 }
 
@@ -153,9 +155,9 @@ func (e *Engine) RegisterConnections(connections map[string][]string) error {
 	return nil
 }
 
-func (e *Engine) AddGlobalService(id string, service *clients.Client) error {
+func (e *Engine) AddGlobalService(id string, service any) error {
 	if _, ok := e.services.Clients[id]; ok {
-		return errors.New("services with id:" + id + "already exists")
+		return errors.New("services with id:" + id + " already exists")
 	}
 	e.services.Clients[id] = service
 	return nil

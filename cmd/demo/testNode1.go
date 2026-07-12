@@ -15,8 +15,9 @@ func (t *TestNode1) Id() string { return "TestNode" }
 
 func (t *TestNode1) NumInstances() int { return 1 }
 
-func (t *TestNode1) Init(services alloy.Services) {
+func (t *TestNode1) Init(services alloy.Services) error {
 	t.logger = services.Logger
+	return nil
 }
 
 func (t *TestNode1) Start(ctx context.Context, workerId string, inJob <-chan alloy.Job, _ chan<- alloy.Job) {

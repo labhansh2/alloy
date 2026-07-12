@@ -22,16 +22,17 @@ func (n *NotionEvent) Id() string {
 	return "NotionEvent"
 }
 
-func (n *NotionEvent) Init(s alloy.Services) {
+func (n *NotionEvent) Init(s alloy.Services) error {
 	n.serverMux = s.HttpServerMux
 	n.logger = s.Logger
+	return nil
 }
 
 func (n *NotionEvent) Start(ctx context.Context, workerId string, _ <-chan alloy.Job, outJobs chan<- alloy.Job) {
 
 	n.logger.Printf("starting node worker %s\n", workerId)
 
-	secret := os.Getenv("NOTION_VERIFICATION_TOKEN")
+	secret := os.Getenv("NOTION_WH_VERIFICATION_TOKEN")
 
 	wh := alloy.NewWebhook(ctx, n.serverMux, notionWebhookPath,
 		alloy.RequiresAuth(),

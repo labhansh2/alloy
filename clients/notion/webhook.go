@@ -22,6 +22,15 @@ type WebhookPayload struct {
 	Data           map[string]any `json:"data"`            // Additional event-specific data
 }
 
+// String implements the fmt.Stringer interface for WebhookPayload.
+func (w *WebhookPayload) String() string {
+	b, err := json.MarshalIndent(w, "", "  ")
+	if err != nil {
+		return "<invalid WebhookPayload: " + err.Error() + ">"
+	}
+	return string(b)
+}
+
 // Author represents who performed the action on the event, i.e. person, bot, or agent.
 type Author struct {
 	Id   string `json:"id"`   // ID of the author
