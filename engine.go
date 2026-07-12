@@ -9,16 +9,10 @@ import (
 )
 
 type Services struct {
-	// base servies
 	HttpClient    *http.Client
 	httpServer    *http.Server
 	HttpServerMux *http.ServeMux
 	Logger        *log.Logger
-
-	// custom services
-	// todo: high: keep custom services seperate from the egnine
-	// engine doesn't require services, nodes do
-	Clients map[string]any
 }
 
 type EngineSettings struct {
@@ -48,8 +42,6 @@ type Engine struct {
 }
 
 func NewEngine(services Services, opts ...EngineOptions) (*Engine, error) {
-
-	// default mandatory services
 	if services.Logger == nil {
 		services.Logger = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 	}
@@ -63,9 +55,6 @@ func NewEngine(services Services, opts ...EngineOptions) (*Engine, error) {
 		services.httpServer = &http.Server{
 			Handler: services.HttpServerMux,
 		}
-	}
-	if services.Clients == nil {
-		services.Clients = make(map[string]any)
 	}
 
 	// todo : high: add tunneling settings
@@ -152,14 +141,6 @@ func (e *Engine) RegisterConnections(connections map[string][]string) error {
 			}
 		}
 	}
-	return nil
-}
-
-func (e *Engine) AddGlobalService(id string, service any) error {
-	if _, ok := e.services.Clients[id]; ok {
-		return errors.New("services with id:" + id + " already exists")
-	}
-	e.services.Clients[id] = service
 	return nil
 }
 
