@@ -38,6 +38,6 @@ todo
 
 flows
 - [ ] bang
-- [ ] nottager
+- [x] nottager
 - [ ] sum up HN
 - [ ] sum up yt feed
