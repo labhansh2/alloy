@@ -1,43 +1,9 @@
-router for automations that run my life
+<div align="center">
+  <img src="docs/assets/light.png#gh-light-mode-only" width="120" alt="alloy logo">
+  <img src="docs/assets/dark.png#gh-dark-mode-only" width="120" alt="alloy logo">
 
-todo 
-- [x] logger
-- [x] renaming concepts
-- [x] encapsulate servcies
-- [x] service pass logic
-- [ ] notification channels (borrow concepts from calwbot)
-- [ ] base triggers
-    - [x] webhook (lisen using serverMux)
-    - [x] polling (ticker + http do)
-    - [x] tickers (prolly just use the default one)
-    - [x] timed exec (just use time.Until in a timer)
-- [x] error handling
-- [x] better engine sync
-- [x] trigger chainging <-
-- [x] dispatcher
-- [x] polish dispatcher
-- [x] payload as btytes
-- [x] ngrok tunneling
-- [x] buffered jobs
-- [x] buffered C's
-- [x] custom services/ refactor services
-- [ ] draw flow
-- [ ] clients
-    - [x] notion
-    - [x] ai
-    - [ ] broswerbase
-    - [ ] browseruse
-- [ ] payload as byte 'stream?'
-- [ ] ci
-- [ ] optimized deployment pipeline for a common user
-- [ ] better jobs logging and schema
-    - timestamps
-    - trace ID
-    - retry count
-    - metadata
+  <h1>alloy</h1>
+  <p>use your personal intelligence tooling and configurations anywhere</p>
+</div>
 
-flows
-- [ ] bang
-- [x] nottager
-- [ ] sum up HN
-- [ ] sum up yt feed
+

@@ -1,0 +1,36 @@
+# Node runtime, environments and deployment
+
+## Definition, installation and execution
+
+`nodes add` is a control-plane registration, not permission to execute arbitrary code immediately. It validates manifest and name, resolves path relative to the node project, previews code identity and requested capabilities, obtains approval, and records a binding. For self-managed remote nodes, the project remains on its host; installation/starting and enrollment are separate. A server-hosted runner may install and start a node only when the operator explicitly assigns it. Prefer content-addressed artifacts/digests and signed releases for remote distribution; do not assume a path on the server exists on another machine.
+
+Node lifecycle: `registered → installed → starting → ready → draining → stopped`, with `failed` and `offline` conditions. A healthy process is not necessarily connected or ready. Runner reports PID/process identity, node/instance version, last heartbeat, last error and selected transport. Server stores desired state separately from observations. Restart with bounded backoff; stop starts draining, stops new leases, waits a grace period, then terminates and lets unfinished leases expire. On restart, recover durable jobs, not ephemeral state. Set CPU/memory/process limits where the OS supports them; document that process separation alone is not a security sandbox.
+
+## Language support
+
+All SDKs implement the same versioned wire protocol, errors, identity, event/ack contract, cancellation, resource API and conformance fixtures. Go is first for server and embedded nodes; Python and TypeScript are supervised independent processes. Release independently versioned packages with a declared compatibility matrix and generated protocol bindings. Publish install instructions and examples; dependency locking and provenance are part of each node project.
+
+- **Go**: server can embed trusted Go nodes in the same binary. For supervised nodes build a binary at install time with pinned Go toolchain/modules or use a prebuilt platform artifact. Go source cannot be dynamically loaded as arbitrary portable plugins; source changes require rebuilding/restarting the host binary or running an external process.
+- **Python**: use project metadata, lockfile and a per-project virtual environment; `uv` is a promising optional managed installer for Python versions and dependencies. Allow existing venvs/system Python where compatible. Lock native dependencies and validate wheel/platform availability; sandboxing and offline caches are separate concerns.
+- **TypeScript**: execute compiled JavaScript under a pinned supported Node.js version, with lockfile and reproducible package install; manage Node via a well-supported version manager or preinstalled runtime, selected after prototype. TypeScript compilation and type checking occur during install/build, not on every event. Avoid relying on a single platform-specific package manager without evaluating portability.
+
+Runner detects OS/architecture, installs approved pinned runtime/artifacts into a user-owned cache when enabled, checks integrity, and reuses environments keyed by lockfile/toolchain/platform. Show progress and clear failures. Users can choose existing toolchains, disable downloads, configure mirrors and prewarm offline caches. First run, package installation, native extensions, disk space, OS libraries and external services cannot be made invisible or guaranteed; no network means only preinstalled cached dependencies work. Do not download or execute project dependencies merely on registration without consent. Never require server credentials in a build environment.
+
+## Communication and hosting cases
+
+1. **Same Go server process**: explicitly linked node, channel adapter, trusted with full process memory. Fastest plausible path, subject to measurement and configured durability.
+2. **Same machine, separate process**: local socket to server; node may have its own environment and OS account. File/socket permissions plus application auth; process may still access anything its OS identity permits.
+3. **Different machines**: node initiates authenticated TLS to a reachable server; it can be self-hosted, run as a service, container or managed by a deliberately installed host runner. It uses a server-issued per-instance credential and independent runtime.
+4. **Project-local**: `.agents/nodes/<name>/` contains manifest, code and lockfiles. The binding belongs to the server/user configuration outside that repository; do not commit enrollment material. Repo-provided code and dependency scripts are untrusted until reviewed.
+5. **Raspberry Pi**: a supported Linux architecture can run the normal SDK/runner if prebuilt binaries, dependencies and resources support it. Start with Linux arm64; test real hardware, network interruption and power loss. 32-bit ARM is a separate support decision.
+6. **Arduino/microcontrollers**: not equivalent to Linux, Python/Node or a Go process. Memory, architecture, connectivity, TLS and clocks vary considerably. Future gateway maps a minimal authenticated MQTT or device-specific protocol onto Alloy subjects and policies; devices use firmware-specific clients, not the full SDK. Choose one board and connectivity profile, test secure provisioning and limits before promising support. MQTT QoS is not an end-to-end exactly-once side-effect guarantee.
+
+## Packaging and operations
+
+Ship a single server/CLI executable where feasible, plus language SDK packages; optionally an OCI image and system service templates. Server state lives in a configurable user-owned data directory separate from source/config. Provide explicit backup/restore for server ID, CA, configuration, durable state and vault recovery; test restores on a separate machine while avoiding two active copies with the same identity. Add `doctor`, status, structured logs/metrics and upgrade/migration checks. Do not collect telemetry by default without an explicit privacy decision.
+
+SQLite in WAL mode is a reasonable single-host default for metadata and durable queue prototyping; use local supported storage, one server writer strategy, bounded transaction sizes, correct sync settings, migrations and tested backups. It is not a multi-host clustered broker, and WAL should not be placed on a network filesystem. Document actual durability settings and the OS/filesystem/power-loss assumptions. A second server process must not concurrently own the same state directory: acquire an OS-level lock and fail clearly. Postgres or NATS JetStream can be evaluated later against real throughput/availability requirements rather than hidden behind an unimplemented abstraction.
+
+## Runtime safety and observability
+
+Define per-node quotas: concurrent handlers, queue depth, event/payload size, resource calls, process restarts, timeouts and log volume. Trace events with correlation IDs and status without logging secrets/payloads by default. A project watcher or poller is a long-running node which emits events and supports shutdown; webhooks require signature verification, replay protection and explicit public exposure. A hot reload is a development feature: rebuild/restart with drain and surface failures, not an atomic production deployment claim.
