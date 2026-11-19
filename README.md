@@ -6,4 +6,6 @@
   <p>use your personal intelligence tooling and configurations anywhere</p>
 </div>
 
+### current status
 
+research and ideation phase. pivoting from the original idea of building a personal automation hub

@@ -9,14 +9,25 @@
 - **Event**: a fact published under a typed subject. Each matching logical subscription receives its own delivery. **Job**: a delivery to one logical subscription, processed by one of its competing instances. An event can produce zero or many jobs.
 - **Host runner**: an optional process on a machine that starts and supervises assigned nodes. A self-managed remote node may connect without granting the server power to execute arbitrary code on its host.
 
-```text
- CLI / SDK admin ── authenticated control API ──┐
-                                               ▼
-  in-process Go node ── channels ──► [ Alloy server ] ◄── outbound TLS ─ remote node
-                                   registry | policy | broker | resource gateway
-  supervised local process ── local socket ────┘              │
-                                                     credential / MCP / API
-  small device ── optional future gateway ────────────────────┘
+```mermaid
+flowchart LR
+    Admin[CLI / SDK admin] -->|Authenticated control API| Server
+    GoNode[In-process Go node] -->|Channels| Server
+    Local[Supervised local process] -->|Local socket| Server
+    Remote[Remote node] -->|Outbound TLS| Server
+    Device[Small device] -.->|Optional future gateway| Gateway
+
+    subgraph Server[Alloy server]
+        Registry[Registry]
+        Policy[Policy]
+        Broker[Broker]
+        Gateway[Resource gateway]
+        Registry --- Policy
+        Policy --- Broker
+        Broker --- Gateway
+    end
+
+    Gateway --> Resources[Credentials / MCP / API]
 ```
 
 One server is an administrative boundary with its own identity, data directory, keys, policy and namespace. Separate servers do not share credentials or state by default. Server identity must be verified even for remote nodes on trusted networks.
