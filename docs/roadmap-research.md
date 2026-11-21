@@ -19,6 +19,9 @@ Order is deliberately incremental; each milestone produces a demo and tests befo
 ### 0 — Agree on the contract and baseline
 
 - Record target users, first automation, supported OS/architectures, deployment model and trust expectations. Inventory current public API and user changes; add tests around existing typed subscriptions and lifecycle.
+    - target users initially are people who are trying to automate their complex workflows and need a portable way to use their intelligence tooling anywhere
+    - first support for mac os but os agnosticism is the goal
+    - currently we only support local deployment for this milestone
 - Prototype a minimal Go node and resource use with the proposed manifest; review the UX with one human and one agent. Decide whether durable delivery is required for the first end-user scenario.
 - Exit: approved terminology and behavioral examples; documented compatibility plan and initial threat model.
 

@@ -8,4 +8,5 @@
 
 ### current status
 
-research and ideation phase. pivoting from the original idea of building a personal automation hub
+- pivoted from the original idea of a personal automation hub to a system for portable personal intelligence
+- reseraching and testing minimal transport layer for efficient share of resources
