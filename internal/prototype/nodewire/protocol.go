@@ -32,8 +32,10 @@ type ResourceHandler func(context.Context, json.RawMessage) (any, error)
 type Server struct {
 	Resources map[string]ResourceHandler
 	OnPublish func(context.Context, string, json.RawMessage) error
+	Authorize func(node, resource string) bool
 }
 
+// ServeNode handles one already-upgraded WebSocket session.
 func (s *Server) ServeNode(ctx context.Context, conn *websocket.Conn) error {
 	conn.SetReadLimit(maxMessageSize)
 	_, data, err := conn.Read(ctx)
@@ -82,7 +84,7 @@ func (s *Server) ServeNode(ctx context.Context, conn *websocket.Conn) error {
 			}
 		case "resource.call":
 			handler := s.Resources[msg.Name]
-			if handler == nil {
+			if handler == nil || (s.Authorize != nil && !s.Authorize(hello.Node, msg.Name)) {
 				if err := write(Message{Type: "error", ID: msg.ID, Error: "resource not allowed: " + msg.Name}); err != nil {
 					return err
 				}

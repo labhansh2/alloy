@@ -17,7 +17,7 @@ func TestNodeSessionPublishesAndCallsApprovedResource(t *testing.T) {
 			return nil, err
 		}
 		return map[string]any{"echo": v}, nil
-	}}, OnPublish: func(_ context.Context, node string, _ json.RawMessage) error {
+	}}, Authorize: func(node, resource string) bool { return node == "test-node" && resource == "echo" }, OnPublish: func(_ context.Context, node string, _ json.RawMessage) error {
 		if node != "test-node" {
 			t.Errorf("publish node = %q", node)
 		}

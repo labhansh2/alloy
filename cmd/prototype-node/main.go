@@ -5,24 +5,37 @@ package main
 import (
 	"context"
 	"log"
+	"os"
+	"strings"
 	"time"
 
-	"alloy/nodewire"
+	"alloy/internal/prototype/nodewire"
 )
 
 func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	node, err := nodewire.Dial(ctx, "ws://127.0.0.1:8080/node", "prototype-node")
+	url := os.Getenv("ALLOY_PROTOTYPE_URL")
+	if url == "" {
+		url = "ws://127.0.0.1:8080/node"
+	}
+	if strings.HasPrefix(url, "http://") {
+		url = "ws" + strings.TrimPrefix(url, "http")
+	}
+	node, err := nodewire.Dial(ctx, url, "prototype-node")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer node.Close()
 	var result map[string]any
-	if err := node.CallResource(ctx, "echo", map[string]string{"message": "hello from node"}, &result); err != nil {
+	if err := node.CallResource(ctx, "echo", map[string]string{"text": "hello from node"}, &result); err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("server resource result: %#v", result)
+	log.Printf("shared echo CLI result: %#v", result["output"])
+	if err := node.CallResource(ctx, "ls", nil, &result); err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("shared ls CLI result:\n%v", result["output"])
 	if err := node.Publish(ctx, map[string]string{"kind": "prototype.completed"}); err != nil {
 		log.Fatal(err)
 	}
