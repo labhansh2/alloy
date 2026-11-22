@@ -24,6 +24,23 @@ The node source is `cmd/codexnode/run.ts`. The Go launcher runs its compiled
 `dist/run.js`; generated output is ignored by Git. Use
 `pnpm --dir cmd/codexnode typecheck` to check the TypeScript without emitting files.
 
+Connection configuration lives separately in `cmd/codexnode/options.ts` as a
+plain, typed `CodexOptions` object. The node uses the native SDK directly:
+
+```ts
+import { Codex } from "@openai/codex-sdk";
+import { codexOptions } from "./options.js";
+
+const codex = new Codex(codexOptions);
+const thread = codex.startThread({ /* node-local thread settings */ });
+const result = await thread.run("Summarize this project");
+```
+
+There is no Alloy SDK or thread wrapper. The launcher explicitly supplies the
+broker URL and temporary node token through environment variables; the options
+object passes only the required environment to the node-local Codex subprocess.
+It does not discover accounts or fall back to another authentication source.
+
 The proof currently defaults to `gpt-6.1-sol`, the model configured on the host
 used to verify this experiment. Set `ALLOY_CODEX_MODEL` to another supported model
 if needed. Login is read from `$CODEX_HOME/auth.json`, or `~/.codex/auth.json`.

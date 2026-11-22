@@ -5,13 +5,16 @@
   "packageManager": "pnpm@12.21.0",
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write '*.ts' '*.json' pnpm-lock.yaml",
+    "format:check": "prettier --check '*.ts' '*.json' pnpm-lock.yaml"
   },
   "dependencies": {
     "@openai/codex-sdk": "0.171.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
+    "prettier": "3.10.1",
     "typescript": "7.0.2"
   }
 }
