@@ -1,2 +1,4 @@
 .env
 /docs/private
+node_modules/
+/cmd/codexnode/dist/
