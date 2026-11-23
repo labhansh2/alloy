@@ -1,0 +1,277 @@
+# What should an Alloy server project look like?
+
+I’d make the server **a small composition root for your automation environment**: configure shared capabilities, approve nodes, wire entry points, and start the runtime.
+
+In other words:
+
+- The server owns the registry, node connections, event routing, resource authorization, and shared gateway.
+- Your server project says what capabilities exist and which nodes may use them.
+- Nodes contain the automation logic. The server does not need to contain every automation or import every node's implementation.
+- Go is the initial server implementation language. Nodes remain independent programs in their own languages and environments.
+
+This complements [the node structure](node-structure.md) and [the product vision](vision.md).
+
+**All layouts, APIs, configuration fields, and commands below are design sketches, not implemented interfaces.** Start with explicit primitives; do not build a polished SDK just to reproduce these examples.
+
+## A small server project
+
+One server project could hold your personal automation setup:
+
+```text
+my-alloy/
+├── go.mod
+├── go.sum
+├── cmd/
+│   └── home/
+│       └── main.go          # Configure and run this Alloy server
+├── internal/
+│   └── setup/
+│       ├── server.go        # Assemble capabilities and bindings
+│       ├── resources.go     # Custom resource adapters, if needed
+│       └── nodes.go         # Node registrations and grants
+├── nodes/                  # Optional: local node projects
+│   ├── note-tagger/
+│   │   ├── alloy.node.yaml
+│   │   ├── package.json
+│   │   ├── pnpm-lock.yaml
+│   │   └── src/main.ts
+│   └── folder-watcher/
+│       ├── alloy.node.yaml
+│       ├── go.mod
+│       └── main.go
+└── README.md
+```
+
+This is a possible **user project**, not a requirement to reorganize Alloy's own implementation repository. A small setup can start with just `go.mod`, `go.sum`, and `main.go`; split configuration into files when it helps readability.
+
+Nodes may live in separate repositories. A browser extension or remote worker does not need to be copied into this repository to connect. A path under `nodes/` is a convenience for local projects, not a path that automatically exists on another machine.
+
+Keep node credentials, upstream login files, private keys, and runtime state outside the repository. Reference protected host configuration rather than embedding secret values in source or manifests.
+
+## A minimal Go entry point
+
+The entry point starts an ordinary Go application with a clear lifetime:
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+    "os"
+    "os/signal"
+    "syscall"
+
+    "example.com/my-alloy/internal/setup"
+)
+
+func main() {
+    if err := run(); err != nil {
+        log.Fatal(err)
+    }
+}
+
+func run() error {
+    ctx, stop := signal.NotifyContext(
+        context.Background(), os.Interrupt, syscall.SIGTERM,
+    )
+    defer stop()
+
+    srv, err := setup.NewServer()
+    if err != nil {
+        return err
+    }
+
+    return srv.Run(ctx)
+}
+```
+
+Here, `setup` is code in the user's project. The proposed `Run` contract is to bind the listener, start assigned workloads, block until shutdown or a fatal error, and clean up before returning. Startup errors must reach the caller rather than only being logged in a background goroutine.
+
+## What server setup contains
+
+The composition code should read like a description of the environment, not a workflow graph. For example, this is one possible Go API shape:
+
+```go
+package setup
+
+import (
+    "example.com/alloy/server"
+)
+
+func NewServer() (*server.Server, error) {
+    srv, err := server.New(server.Config{
+        Name:     "home",
+        Listen:   "127.0.0.1:8080",
+        Delivery: server.Ephemeral,
+    })
+    if err != nil {
+        return nil, err
+    }
+
+    if err := registerResources(srv); err != nil {
+        return nil, err
+    }
+
+    if err := registerNodes(srv); err != nil {
+        return nil, err
+    }
+
+    if err := registerWebhooks(srv); err != nil {
+        return nil, err
+    }
+
+    return srv, nil
+}
+```
+
+The helper functions are normal project code. They register definitions before startup; they should not start unmanaged background tasks or execute repository-supplied node code merely by discovering it. The initial setup is memory-backed: no database or durable queue is implied.
+
+The `server` package above is illustrative. It is not an instruction to create a new public package before the current prototype validates the behavior.
+
+## Shared capabilities are configured once
+
+Resource registration names the capability and its implementation. It does not grant every connected node access to it.
+
+An illustrative registration fragment, assuming `srv` and the adapters have already been constructed:
+
+```go
+// Typed, server-executed operations.
+srv.RegisterResource("github.issue.read", github.ReadIssue)
+srv.RegisterResource("notes.tags.update", notes.UpdateTags)
+
+// Native protocol/SDK connections, not wrappers around every tool or method.
+srv.RegisterMCP("research", researchMCP)
+srv.RegisterHarness("codex", codexConnection)
+```
+
+These registration calls should validate definitions and report failures; error handling is omitted in this fragment only to show the categories. Adapter construction should make the execution host, credential source, timeouts, and other limits explicit.
+
+- **Resource operations:** functions such as `github.issue.read` run on the server using an explicitly configured client or approved CLI adapter. Do not substitute a generic unrestricted shell.
+- **MCP connections:** Alloy can expose an approved MCP endpoint backed by an upstream HTTP service or a managed server-local stdio process. Nodes use a native MCP client or their harness's MCP support.
+- **Harness connections:** Alloy supplies native SDK connection options where supported. A node may run the full Codex SDK locally; registration does not mean the thread or its filesystem tools execute on the server.
+- **Instructions and skills:** optional named configuration bundles can be supplied to nodes with explicit selection, compatibility checks, and native overrides. They are not automatically executable or globally authoritative.
+
+Provider integrations are not interchangeable. The current Codex auth proxy is experimental; registering a connection does not establish that forwarding subscription credentials is supported or permitted. Use a separately verified integration path for each provider.
+
+Node-local services do not belong in the server's resource registry just because they exist. A local filesystem watcher or tool remains part of the node unless it is deliberately exposed as an approved provider in a future design.
+
+## Register nodes separately from granting access
+
+The node's manifest says what it requests. Server-side bindings say what is approved and whether Alloy should run it.
+
+For example, a server-side binding could conceptually contain:
+
+```yaml
+node: note-tagger
+manifest: ./nodes/note-tagger/alloy.node.yaml
+
+execution:
+  mode: managed
+  host: server
+  lifetime: service
+
+grants:
+  subscribe: [note.updated]
+  publish: [note.tagged]
+  resources: [notes.tags.update]
+  harnesses: [codex]
+```
+
+This YAML illustrates the contents of a binding; it does not require a second configuration language or parser for the first prototype. Go registration can express the same data initially. Do not maintain conflicting Go and YAML sources of truth.
+
+Important distinctions:
+
+- **Registration** approves a definition and binding; it is not installation, startup, or proof that a running instance is authenticated.
+- **Managed nodes** are explicitly assigned to Alloy's local runner. The runner uses the node's approved entry point and prepared environment. Registration alone must not install or execute dependencies.
+- **Self-managed nodes** start elsewhere and connect with their own approved instance identity. Alloy does not assume control over their host processes.
+- **One-shot nodes** run once and report completion; their successful exit is not a failure requiring automatic restart. Schedules can start a new run explicitly.
+- **Services and workers** remain running under a configured restart/shutdown policy.
+- **Frontends and extensions** can connect independently, but must not contain an administrator token or embedded upstream credentials. Browser clients need an appropriate user/session authorization flow and origin checks.
+
+The server should show registered, running, connected, and ready as distinct states. A shared logical node name is not authentication; grants must be enforced against authenticated instances or sessions. The prototype's self-declared name check is not sufficient for production.
+
+## Event subscriptions are the default wiring
+
+Prefer subscribing to meaningful events over hard-coding a graph of node-to-node destinations:
+
+```text
+note.updated
+    → note-tagger subscription
+
+note.tagged
+    → frontend subscription
+    → activity-log subscription
+```
+
+The server approves publish/subscribe permissions and routes events to connected subscribers. Nodes can remain independently understandable programs. Direct resource calls still use request/response; functions inside a node do not need to pass through the server.
+
+For the initial in-memory path, say explicitly that events are ephemeral. Server restarts and offline subscribers do not imply replay. Separate logical subscriptions receive their own deliveries; replicas sharing one subscription may compete for work. Do not promise those semantics until the transport and broker implement and test them.
+
+## One gateway, without making every node a web server
+
+The server owns the HTTP listener. It can route different kinds of traffic on the same port:
+
+```text
+Alloy server listener
+├── authenticated node connections
+├── authenticated control/status endpoints
+├── approved MCP or harness routes
+└── explicitly exposed webhook routes
+        → connected node handler
+```
+
+Paths are internal routing details, not a requirement for node authors to implement HTTP servers. Sharing a port does not mean sharing authorization rules.
+
+A node registers a logical webhook handler. Its manifest requests that capability; the server binding approves a route and the signature/verification policy. External requests arrive at Alloy, which forwards a bounded request envelope over the node's existing outbound session and returns its response.
+
+For example:
+
+```text
+POST /hooks/notes
+    → verify source/signature using the raw request bytes
+    → forward to note-tagger's approved "notes" handler
+    ← return handler response within a deadline
+```
+
+- Route ownership and node-instance selection must be explicit; nodes cannot claim arbitrary server paths.
+- Synchronous verification challenges need request/response behavior, not only event publication.
+- Bound payload size, headers, concurrency, and response time. Surface offline-node failures rather than silently acknowledging unprocessed work.
+- If Alloy acknowledges after publishing an in-memory event, that is not a durable receipt or proof of completed processing.
+- A loopback listener is not internet-reachable. Public webhooks require deliberate exposure through a reachable deployment or an external tunnel; remote node connections require verified TLS and authentication.
+
+This is webhook forwarding, not a general reverse HTTP tunnel. Exposing an existing node-local frontend or HTTP application is a separate feature with its own routing, streaming, and security requirements. Webhook, MCP, and browser-facing endpoints should not inherit control-plane access merely because they share a listener.
+
+## What belongs outside the server main file?
+
+Keep the entry point focused on assembly and lifetime:
+
+- Node handlers and automation-specific decisions live in node projects.
+- Custom resource implementations live in ordinary packages, registered by setup code.
+- Provider credentials and node-instance credentials live in protected host storage, not committed configuration.
+- Prepared language environments and built artifacts live in explicitly managed locations, not assumed to exist on every host.
+- Logs and transient status are runtime concerns; durable state can be designed later when required.
+
+A trusted Go node may be explicitly linked into the server as an optional adapter. That is not dynamic Go source loading, and it shares the server's memory and OS privileges. It should use the same logical event/resource contract without pretending to be an isolated process.
+
+## Code-first, without requiring custom servers forever
+
+For the current direction, a small Go-coded composition root is a useful way to test the primitives. Users or their coding agents can assemble custom adapters without waiting for a large declarative schema.
+
+Later, a stock server executable can load declarative setup for users who need no custom code. Both entry points should assemble the same runtime and enforce the same checks. A source file is not a running server identity, and the eventual CLI should not require every user to build a bespoke binary for routine setup.
+
+This is an incremental path, not a commitment to implement both entry points immediately. The current prototype commands remain demonstrations rather than the server API shown here.
+
+## My recommendation
+
+Make the minimum server contract:
+
+1. An explicit listener, instance configuration, and shutdown lifetime.
+2. A registry of shared capabilities with known execution locations.
+3. Approved node bindings, instance authentication, and scoped grants.
+4. Event routing and direct resource request/response.
+5. Optional local supervision for explicitly assigned nodes.
+6. A shared gateway that can forward approved webhooks without node listening ports.
+7. Status and errors that explain what ran, where it ran, and why it failed.
+
+Build one personal automation with these primitives first. Keep the setup small enough that adding the next automation mainly means writing its behavior and declaring what it needs—not rebuilding the server or inventing another infrastructure stack.
