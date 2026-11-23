@@ -1,0 +1,12 @@
+{
+  "name": "alloy-tooling",
+  "private": true,
+  "packageManager": "pnpm@12.21.0",
+  "scripts": {
+    "format": "bash scripts/format.sh",
+    "format:check": "bash scripts/format.sh --check"
+  },
+  "devDependencies": {
+    "prettier": "3.10.1"
+  }
+}

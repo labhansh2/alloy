@@ -8,6 +8,12 @@ require (
 )
 
 require (
+	github.com/bombsimon/wsl/v5 v5.3.0 // indirect
+	golang.org/x/mod v0.33.0 // indirect
+	golang.org/x/tools v0.42.0 // indirect
+)
+
+require (
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/segmentio/asm v1.1.3 // indirect
@@ -17,3 +23,5 @@ require (
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 )
+
+tool github.com/bombsimon/wsl/v5/cmd/wsl

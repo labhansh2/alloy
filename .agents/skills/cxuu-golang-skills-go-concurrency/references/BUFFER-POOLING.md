@@ -72,6 +72,7 @@ func putBuffer(b *Buffer) {
 ```
 
 `sync.Pool` advantages:
+
 - Automatic cleanup during garbage collection
 - No need to manage pool size
 - Thread-safe by design

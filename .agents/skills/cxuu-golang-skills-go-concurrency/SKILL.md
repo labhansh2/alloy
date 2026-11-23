@@ -24,6 +24,7 @@ other goroutine has a reference to the channel.
 
 Even when goroutines do not leak, leaving them in-flight when no longer needed
 causes:
+
 - **Panics**: Sending on a closed channel causes a panic
 - **Data races**: Modifying still-in-use inputs after the result isn't needed
 - **Memory issues**: Unpredictable memory usage from long-lived goroutines
@@ -70,6 +71,7 @@ func (w *Worker) Run() {
 ### Don't Fire-and-Forget Goroutines
 
 Every goroutine must have a predictable stop mechanism:
+
 - A predictable time at which it will stop running, OR
 - A way to signal that it should stop
 - Code must be able to block and wait for the goroutine to finish
@@ -318,6 +320,7 @@ func sum(values chan int) (out int) {
 
 Channels should usually have a size of one or be unbuffered. Any other size must
 be subject to scrutiny. Consider:
+
 - How is the size determined?
 - What prevents the channel from filling up under load?
 - What happens when writers block?
@@ -437,23 +440,24 @@ when parallelizing CPU-bound computations across cores.
 
 ## Quick Reference
 
-| Topic | Guidance | Type |
-|-------|----------|------|
-| Goroutine lifetimes | Make exit conditions clear | Normative |
-| Fire-and-forget | Don't do it - always have stop mechanism | Normative |
-| Zero-value mutexes | Valid; don't use pointers | Advisory |
-| Mutex embedding | Don't embed; use named field | Advisory |
-| Synchronous functions | Prefer over async | Normative |
-| Channel direction | Always specify | Normative |
-| Channel size | One or none by default | Advisory |
-| Atomic operations | Use go.uber.org/atomic | Advisory |
-| Concurrency docs | Document when not obvious | Advisory |
-| Channels of channels | Embed reply channel in request struct | Advisory |
-| Parallelization | Use goroutines + completion channel for CPU work | Advisory |
+| Topic                 | Guidance                                         | Type      |
+| --------------------- | ------------------------------------------------ | --------- |
+| Goroutine lifetimes   | Make exit conditions clear                       | Normative |
+| Fire-and-forget       | Don't do it - always have stop mechanism         | Normative |
+| Zero-value mutexes    | Valid; don't use pointers                        | Advisory  |
+| Mutex embedding       | Don't embed; use named field                     | Advisory  |
+| Synchronous functions | Prefer over async                                | Normative |
+| Channel direction     | Always specify                                   | Normative |
+| Channel size          | One or none by default                           | Advisory  |
+| Atomic operations     | Use go.uber.org/atomic                           | Advisory  |
+| Concurrency docs      | Document when not obvious                        | Advisory  |
+| Channels of channels  | Embed reply channel in request struct            | Advisory  |
+| Parallelization       | Use goroutines + completion channel for CPU work | Advisory  |
 
 ### Concurrency Checklist
 
 Before spawning a goroutine, answer:
+
 - [ ] How will this goroutine exit?
 - [ ] Can I signal it to stop?
 - [ ] Can I wait for it to finish?
@@ -463,15 +467,15 @@ Before spawning a goroutine, answer:
 
 ### Anti-Patterns to Avoid
 
-| Anti-Pattern | Problem | Fix |
-|--------------|---------|-----|
-| Fire-and-forget goroutines | Resource leaks, undefined behavior | Use WaitGroup, done channel, or context |
-| Goroutines in init() | Uncontrollable lifecycle | Use explicit object with Shutdown method |
-| Embedded mutexes | Leaks Lock/Unlock into API | Use named `mu` field |
-| Pointer to mutex | Unnecessary indirection | Zero-value is valid |
-| Arbitrary channel buffers | Hidden blocking issues | Default to 0 or 1 |
-| Raw sync/atomic | Easy to forget atomic reads | Use go.uber.org/atomic |
-| Undocumented thread-safety | Callers may race | Document when unclear |
+| Anti-Pattern               | Problem                            | Fix                                      |
+| -------------------------- | ---------------------------------- | ---------------------------------------- |
+| Fire-and-forget goroutines | Resource leaks, undefined behavior | Use WaitGroup, done channel, or context  |
+| Goroutines in init()       | Uncontrollable lifecycle           | Use explicit object with Shutdown method |
+| Embedded mutexes           | Leaks Lock/Unlock into API         | Use named `mu` field                     |
+| Pointer to mutex           | Unnecessary indirection            | Zero-value is valid                      |
+| Arbitrary channel buffers  | Hidden blocking issues             | Default to 0 or 1                        |
+| Raw sync/atomic            | Easy to forget atomic reads        | Use go.uber.org/atomic                   |
+| Undocumented thread-safety | Callers may race                   | Document when unclear                    |
 
 ---
 

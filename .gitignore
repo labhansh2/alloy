@@ -1,4 +1,6 @@
 .env
 /docs/private
+/docs/prototype
 node_modules/
 /cmd/codexnode/dist/
+/cmd/browsenode/dist/
