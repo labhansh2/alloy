@@ -7,3 +7,4 @@ description: Guides documentation changes in Alloy. Use when documenting prototy
 - Keep prototype documentation in `docs/prototype/`.
 - Reserve the root of `docs/` for architecture, core design, and research documents.
 - Update existing documents where possible; avoid redundant notes.
+- Prefer mermaid diagrams over asci diagrams wherever diagraming is needed to define architecture or design.
