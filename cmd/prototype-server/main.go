@@ -100,6 +100,10 @@ func run() error {
 		return err
 	}
 
+	if err := registerEvents(mux, baseURL, *stateDir); err != nil {
+		return err
+	}
+
 	browserCodexToken := ""
 	if *withBrowse {
 		browserCodexToken = rand.Text()

@@ -15,7 +15,7 @@ import (
 
 func registerCLI(mux *http.ServeMux, baseURL, stateDir string) error {
 	token := rand.Text()
-	protocol := &nodewire.Server{Resources: map[string]nodewire.ResourceHandler{
+	protocol := &nodewire.Server{NodeID: "prototype-node", Resources: map[string]nodewire.ResourceHandler{
 		"echo": echo,
 		"ls":   listWorkingDirectory,
 	}, Authorize: func(node, resource string) bool {

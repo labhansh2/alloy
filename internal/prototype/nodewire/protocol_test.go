@@ -10,7 +10,7 @@ import (
 )
 
 func TestNodeSessionPublishesAndCallsApprovedResource(t *testing.T) {
-	s := &Server{Resources: map[string]ResourceHandler{"echo": func(_ context.Context, in json.RawMessage) (any, error) {
+	s := &Server{NodeID: "test-node", Resources: map[string]ResourceHandler{"echo": func(_ context.Context, in json.RawMessage) (any, error) {
 		var v any
 		if err := json.Unmarshal(in, &v); err != nil {
 			return nil, err
