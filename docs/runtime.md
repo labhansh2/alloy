@@ -1,5 +1,7 @@
 # Node runtime, environments and deployment
 
+See [deployment research](deployment-research.md) for current platform constraints and the proposed local-first, optional cloud-deployment experience. Embedded SDK integrations remain part of their user's existing deployment; standalone nodes and the Alloy server have separate hosting requirements. This document's broader runtime and durability plans are proposals, not prerequisites for the current prototype.
+
 ## Definition, installation and execution
 
 `nodes add` is a control-plane registration, not permission to execute arbitrary code immediately. It validates manifest and name, resolves path relative to the node project, previews code identity and requested capabilities, obtains approval, and records a binding. For self-managed remote nodes, the project remains on its host; installation/starting and enrollment are separate. A server-hosted runner may install and start a node only when the operator explicitly assigns it. Prefer content-addressed artifacts/digests and signed releases for remote distribution; do not assume a path on the server exists on another machine.

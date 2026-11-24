@@ -24,6 +24,8 @@ A node can be as simple or as complex as its task requires:
 - A substantial application using a full native agent SDK, such as Codex.
 - A frontend or browser extension connected to Alloy.
 - A standalone agent using harness SDKs.
+- Telemetry frontend.
+- etc.
 
 A node is not necessarily one workflow step. It may contain an entire automation, many handlers, internal state, and background work. Normal functions, modules, and dependencies remain useful; not every function needs to become a node or shared resource.
 
