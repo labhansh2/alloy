@@ -1,5 +1,7 @@
 # Product and architecture
 
+**Status: engineering proposals, not a settled implementation contract.** The [product vision](vision.md) defines Alloy as an engine for a growing personal intelligent system. SDK-led server construction, ordinary connected nodes, shared capabilities, and brokered events are the direction. Exact APIs, manifests, execution modes, delivery guarantees, storage, and transports below remain candidates. The Alloy MCP interface for existing agents is distinct from upstream MCP resources.
+
 ## Mental model
 
 - **Server**: the authoritative coordinator for one Alloy instance: registry, policies, resource broker, job routing, state and audit. The server can host normal nodes, but its control plane is not just another node.
@@ -33,7 +35,7 @@ flowchart LR
 
 One server is an administrative boundary with its own identity, data directory, keys, policy and namespace. Separate servers do not share credentials or state by default. Server identity must be verified even for remote nodes on trusted networks.
 
-## Decisions and tradeoffs
+## Proposed boundaries and tradeoffs
 
 1. **Central coordination first**: publishing, subscription changes, durable acceptance, resource authorization and audit go through the server. Do not make every node a server in v1: decentralized trust, discovery and revocation complicate the basic product. Nodes can offer resources later through explicitly registered providers; initially those providers are local to the server and narrowly scoped.
 2. **Separate definition from binding**: a manifest says what a node needs, not a fixed server credential. `nodes add` binds a definition to an instance and reviews requested capabilities. Runtime configuration selects a named server profile or URL; credentials are never checked into the project. Multiple environments may bind the same definition differently.
@@ -57,7 +59,7 @@ alloy resources add github deploy-api --server home
 alloy secrets put github-token --server home  # hidden prompt or stdin, never argument value
 ```
 
-`alloy server start main.go` can be a future Go convenience wrapper, but requires a Go toolchain, executes arbitrary code, and does not work for a stopped process identified solely by filename. The default should start a prebuilt server from declarative configuration; a Go SDK can embed/customize the server as a deliberate advanced mode. CLI should support `--json`, stable error codes, noninteractive operation, and never prompt in agent mode. List clearly distinguishes configured profiles, locally running processes, and reachable remote servers; it cannot discover every server automatically.
+`alloy server start main.go` is one possible convenience wrapper, but requires a Go toolchain, executes arbitrary code, and does not work for a stopped process identified solely by filename. The intended journey is SDK-led server construction by a user or coding agent, not custom servers as an advanced-only exception. A prebuilt server with declarative configuration remains an option, not a selected default. CLI commands and launch behavior above are sketches. Agent-facing CLI support should provide structured output, stable errors, and explicit noninteractive approval behavior. List must distinguish configured profiles, locally running processes, and reachable remote servers; it cannot discover every server automatically.
 
 Illustrative node manifest:
 
@@ -101,6 +103,8 @@ No assumption of transactional coupling between a handler's publish and acknowle
 
 ## Messaging contract
 
+The following is a candidate contract if these delivery modes are adopted, not a promise that Alloy will implement both modes or their mechanisms before a useful local system. Decide required guarantees with a real scenario first.
+
 The envelope includes protocol version, event ID (UUID/ULID), subject and schema version, producer identity assigned/verified by server, timestamp, content type, payload, correlation/trace and causation IDs, optional expiry and idempotency key. Deliveries additionally carry subscription ID, attempt, lease/deadline and delivery ID. Bound payload and metadata sizes; store large objects separately and reference them. JSON is the first application payload format; an optional schema registry and binary payloads can follow. Never use a client-supplied source field for authorization.
 
 - **Ephemeral**: accepted into bounded memory; no recovery after process crash, at-most-once per attempted delivery, no replay. Slow subscribers may be rejected/dropped according to an explicit policy; expose the outcome. Suitable for telemetry and disposable local notifications.
@@ -111,7 +115,9 @@ The envelope includes protocol version, event ID (UUID/ULID), subject and schema
 
 ## Transport policy
 
-Canonical protocol: versioned protobuf messages and gRPC bidirectional streaming over TLS for remote nodes; use a Unix-domain socket on supported local systems (and a separately designed Windows local transport). gRPC's streams support reconnect, flow control and multiplexing, but application-level ack, replay, queue limits and auth remain Alloy's responsibility. Connections originate from remote nodes, so NAT usually needs no inbound node port; server discovery and reachability are still required.
+This section preserves an earlier gRPC/protobuf proposal for evaluation, not a selected canonical transport. HTTP/WebSocket prototype work is separate evidence; the API and transport choice remains open.
+
+Candidate protocol: versioned protobuf messages and gRPC bidirectional streaming over TLS for remote nodes; a Unix-domain socket on supported local systems (and a separately designed Windows local transport). gRPC's streams support flow control and multiplexing, but reconnect, application-level ack, replay, queue limits and auth remain Alloy's responsibility. Connections would originate from remote nodes, so NAT usually needs no inbound node port; server discovery and reachability are still required.
 
 For trusted in-process Go nodes, bounded channels avoid serialization and network syscalls. The same broker, authorization decision, schema validation, quotas, and durable commit/ack rules must apply; the channel is a delivery adapter, never a bypass. Only ephemeral local messages can bypass persistence, and only when explicitly configured. A remote resource call still passes through the resource gateway. Python/TypeScript run as processes in v1; no claim of cross-language in-process channels. Same host does not imply same process or trust.
 
@@ -119,7 +125,9 @@ Local peer credentials/socket permissions are defense in depth, not a substitute
 
 NATS/JetStream is a credible later backend for larger deployments; it adds operations and its own security/retention model. MQTT can be a later constrained-device gateway. WebSocket is an alternative where proxies prevent gRPC, not an initial second protocol. Shared memory, direct peer-to-peer, QUIC and automatic fastest-path benchmarking are future experiments, not MVP requirements. Any alternate transport must pass the same conformance suite.
 
-## Current repository and migration
+## Earlier repository assessment and migration proposal
+
+The inventory below is a historical planning snapshot, not a fresh implementation audit. Use prototype notes and current source to establish what works today; the root README is now a product entry point, not a task list.
 
 The working tree has ongoing user changes; preserve them. `engine/dispatcher.go` already uses typed subject subscriptions, per-logical-node worker channels and copies payloads on fan-out; its legacy source router remains for untyped jobs. `engine/engine.go` registers nodes and subscriptions before starting, injects shared Go services and listens on `:8080` by default. `engine/poll.go`, `engine/webhook.go` and `engine/tunnel.go` are existing integration building blocks, not an authenticated remote node protocol. The current dispatcher is in-memory, has no persistent ack/lease, capability checks or cross-language protocol, and a blocked destination can delay a router. `cmd/test-alloy-server/server.go` is currently a stub. `README.md` contains the existing task list.
 

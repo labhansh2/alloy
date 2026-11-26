@@ -1,8 +1,10 @@
 # Roadmap, research and validation
 
+**Status: scenario-led research plan, not a release commitment.** The [vision](../vision.md) is a growing personal intelligent system, not an automation engine or tooling proxy alone. Server APIs, launch mechanisms, node execution, and transports remain open; [design status](../private/design-status.md) records the decisions to make later.
+
 ## Research conclusions
 
-These are directional decisions based on the sources below, not measured Alloy performance claims. Revisit against prototypes, operating cost, supported platforms and real workload data.
+These are candidate technologies and engineering constraints based on earlier research, not selected architecture or measured Alloy performance claims. Revisit against prototypes, operating cost, supported platforms and real workload data.
 
 - **gRPC + protobuf** supplies cross-language unary and streaming RPC, not a job queue or transparent durable delivery. HTTP/2 and its deployment/proxy behavior need practical testing; a Unix socket is a local connection option, not a cross-platform universal solution. Explicit application-level auth, limits, retry and reconnect are mandatory.
 - **NATS** separates lightweight Core NATS from JetStream persistence; JetStream consumers provide at-least-once delivery and acknowledgements. It is attractive if Alloy's own queue grows beyond a single host, but broker administration and a dependency are costs. Its deduplication mechanisms do not make arbitrary external side effects exactly once. Evaluate embedded versus external deployment, licensing, upgrades and resource footprint before adoption.
@@ -14,40 +16,47 @@ These are directional decisions based on the sources below, not measured Alloy p
 
 ## Milestones and exit criteria
 
-Order is deliberately incremental; each milestone produces a demo and tests before its successor. Do not treat speculative interfaces as shipped APIs.
+First prove the user experience, then select the infrastructure it needs. Each stage produces a demo and tests; later tracks are conditional, not a fixed sequence requiring a durable queue before useful SDK or capability integration. Do not treat speculative interfaces as shipped APIs.
 
-### 0 — Agree on the contract and baseline
+### 0 — Choose a personal-system scenario
 
-- Record target users, first automation, supported OS/architectures, deployment model and trust expectations. Inventory current public API and user changes; add tests around existing typed subscriptions and lifecycle.
-  - target users initially are people who are trying to automate their complex workflows and need a portable way to use their intelligence tooling anywhere
-  - first support for mac os but os agnosticism is the goal
-  - currently we only support local deployment for this milestone
-- Prototype a minimal Go node and resource use with the proposed manifest; review the UX with one human and one agent. Decide whether durable delivery is required for the first end-user scenario.
-- Exit: approved terminology and behavioral examples; documented compatibility plan and initial threat model.
+- Start with a person building and extending their own intelligent system through an existing agent or handwritten code. Choose a real need and a useful subsequent extension, not only an event-routing benchmark.
+- Earlier planning suggested macOS and local deployment first. Local-first is the intended journey; confirm the initial OS/architecture support rather than implying cross-platform support already exists.
+- Inventory prototype behavior and existing APIs; identify one capability, the smallest node participation model, trust expectations, and the acceptable consequence of lost events.
+- Exit: a concrete example of what the user creates, how it helps, how it can grow, and which decisions are necessary to test it. No final API or transport choice required at this stage.
 
-### 1 — Local vertical slice
+### 1 — Agent-guided local foundation
 
-- CLI initializes/starts/stops a loopback-only server; profile/list/status distinguish configuration from live process. Bind state directory ownership safely. Add manifest registration and explicit policy approval.
-- Trusted Go in-process node publishes typed ephemeral events, one logical subscriber with competing workers, resource broker mock, bounded queues and clean shutdown. Preserve current engine adapter while extracting interfaces.
-- Exit: reproducible end-to-end demo and tests for fan-out, worker sharing, queue saturation, cancellation, invalid requests, denied permissions and server restart behavior. Explicitly label ephemeral delivery.
+- Validate installation guidance and a server-authoring skill with an existing agent. Use the SDK to construct a local server; make the same example understandable to a user writing it manually.
+- Define the minimum useful CLI and Alloy MCP operations for this example, with explicit administrative versus ordinary client authority. Do not require a separate UI or full command parity.
+- Declare one supported provider/harness/MCP or service capability, its credential source, and the client's approved access. Connect a useful node and inspect its result and failure path.
+- Preserve validated prototype primitives. Use bounded events and explicit delivery limitations; avoid new mandatory manifests, runtimes, databases, or transport rewrites unless the scenario requires them.
+- Exit: a reproducible local experience, denied-access tests, safe credential handling, observable startup/shutdown, and honest restart/offline behavior. Do not expose the prototype publicly as part of this proof.
 
-### 2 — Durable delivery and recovery
+### 2 — Demonstrate growth and reuse
 
-- Define and implement SQLite schema/migrations for events, subscription delivery records, lease/attempt state and dead letters. Atomic publish+fan-out transaction; ack/lease renewal, expiry, retry, quotas, retention and explicit inspection/replay. Design locking and clock assumptions; no replay without authorization.
-- Crash-injection tests at commit, delivery, side effect and ack boundaries; fill disk/queue; restart and demonstrate no accepted committed jobs are lost within documented storage assumptions. Verify duplicates, attempt limits and subscriber isolation.
-- Exit: semantics documented with observed failure behavior, performance baseline, backup/restore test; no exactly-once claim.
+- Add a differently shaped node that reuses configured capabilities and exchanges meaningful structured events. Keep native application and harness behavior available.
+- Change a preference or need and revise the system without rebuilding its foundation. Show who approved the change, what authority it received, and how to stop/revoke it or restore the previous source/configuration. Do not imply that source rollback undoes external side effects.
+- Exit: the second capability requires less repeated setup, the change is inspectable, and the user can understand what executes where. Record observed shortcomings before choosing the next engineering track.
 
-### 3 — Process nodes and language SDKs
+### Conditional track — Execution and language support
 
-- Versioned protobuf/gRPC local transport and protocol negotiation, local identity, Go process SDK, Python/TypeScript SDKs with identical fixtures; initial runner installs/executes only approved projects. Pin runtimes and lockfiles; add Python and TS example nodes.
-- Exit: same scenario runs across all three languages, each separately restarted, with capability checks and durable redelivery verified. Test OS-specific transport support and offline cache behavior.
+- Choose the first managed and independently hosted cases, metadata format, connection protocol, and language release order. Go, Python, and TypeScript sketches are candidates, not a requirement to release all three together.
+- Test pinned dependencies, consent to installation/execution, clean shutdown, reconnect behavior, and explicit execution/isolation policy. Native SDK access must not depend on giving the node all host credentials.
+- Exit: the selected support matrix passes shared behavioral and authorization fixtures, including failure and cleanup paths. A separately hosted example is required before claiming cross-machine portability.
 
-### 4 — Secure remote and resource integrations
+### Conditional track — Secure remote and resource integrations
 
 - Implement/review enrollment, server identity verification, mTLS, authorization, audit, credential rotation/revocation and reconnect. Add external secret store/keychain integration; built-in vault only after dedicated design review. First useful narrowly scoped integration and approved MCP adapter.
 - Exit: two-machine demo, network interruption and reconnect, malicious/expired/replayed credential tests, cross-server isolation, secret leak tests, operational recovery documentation and independent security review before public exposure.
 
-### 5 — Product hardening
+### Conditional track — Durable delivery and recovery
+
+- Enter this track only when selected events must survive restarts or disconnection. Choose persistence after defining acceptance, delivery, ack, retention, retry, and idempotency requirements.
+- SQLite is a candidate for a single-host queue, not a product requirement. Test crash boundaries, duplicate side effects, disk/queue exhaustion, subscriber isolation, backup/restore, and authorized replay.
+- Exit: documented and tested guarantees within stated storage assumptions. Never claim exactly-once external effects or durable workflow execution from a delivery queue alone.
+
+### Conditional track — Product hardening
 
 - Supervised service installation, platform matrix, structured `--json` CLI, upgrade/migration, resource quotas, observability, docs, examples, backup and restore. Benchmark and publish results, profiling real bottlenecks.
 - Exit: documented SLOs based on measured deployment, release and rollback procedure, migration coverage, reproducible install and a real dogfooded workflow.
@@ -66,10 +75,12 @@ Server-hosted resource providers on remote nodes; constrained-device gateway for
 
 ## Decisions to make with the user
 
-1. What is the first real automation and does it require durable delivery, remote nodes or just local channels?
+The broader [open-question register](../private/design-status.md#questions-to-decide-later) also covers growth, source versus state, agent authority, SDK/CLI/MCP responsibilities, and memory/workspaces. The questions below narrow the engineering scenarios rather than override that register.
+
+1. What is the first useful personal system and how should it grow? Does the scenario require durable delivery, remote nodes, or just local participation?
 2. Is the initial audience a single trusted user per server or mutually untrusted users? The proposed design isolates servers, but does not offer hostile multi-tenancy inside one server.
 3. Which operating systems/architectures are launch requirements? Is Windows required for v1, and which Raspberry Pi model?
-4. Should the default server be purely declarative or is a Go-coded server a core requirement? Keep both possible, avoid promising that a source file is a running server ID.
+4. Given SDK-led server construction, what initial language and launch/build experience should be supported? Is a stock declarative server useful later? A source file is not a running server ID.
 5. Which first resources matter: GitHub CLI/API, AWS, MCP, a database, or arbitrary commands? Narrow adapters give much safer defaults than general shell access.
 6. Who approves node code and resource permissions, especially for agent-authored nodes? How should approved changes be reviewed?
 7. Is unattended boot mandatory? Choose acceptable unlock trust and external secret-manager dependencies accordingly.

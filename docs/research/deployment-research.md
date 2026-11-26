@@ -2,6 +2,8 @@
 
 Research date: **2026-11-23**. This is an architecture recommendation based on current official documentation, not a deployment implementation or a claim that the prototype is safe to expose publicly. No cloud accounts were accessed or resources created. Pricing and end-to-end platform compatibility have not been measured.
 
+Product alignment, 2026-11-25: start with an SDK-authored local server and connected nodes as described in the [vision](../vision.md). Packaging, server launch, and node execution are still open. Binary/image recommendations and provider-assisted deployment below are options to evaluate later, not committed onboarding requirements or a first-party interface plan.
+
 ## Recommendation
 
 Separate three experiences:

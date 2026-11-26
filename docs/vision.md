@@ -1,101 +1,100 @@
 # Product vision
 
-Agents are great at writing code solutions and automations that improve personal productivity. Writing that code is increasingly accessible; connecting it to tools, giving it the right resources, deploying it, and keeping it running still involves repetitive work.
+> Alloy is an engine for building a self-owned, distributed intelligent system that grows with you.
 
-Alloy exists to remove that friction:
+Alloy gives users and their agents a place to turn evolving needs, preferences, and understanding into lasting capabilities. Those capabilities can take the form of ordinary programs, connected tools, skills, configuration, stored knowledge, or agents—not only conversations and not only automations.
 
-> Write the automation. Alloy provides its operating environment and connects it to your intelligence and tools.
+This is the intended product direction, not a claim that the current prototype implements it. Engineering details remain proposals until validated by prototypes.
 
-## Personal automation, powered by your intelligence
+## What “grows with you” means
 
-Alloy is a personal automation runtime backed by a central collection of your intelligence tooling, integrations, and configuration. It connects your automations to those capabilities and to each other.
+Your intelligent system should not need to be rebuilt for every new task. As you and your agents discover useful patterns, you can add or refine capabilities that remain available for future work.
 
-The starting point is useful personal automation, not a generic workflow engine or a universal credential proxy. Intelligence portability supports that goal rather than replacing it.
+Learning does not have to live only in text, vectors, or graphs. It can also become executable software: a watcher that notices something important, a connector to a service, a reusable research capability, or a program that applies a preference you have established.
 
-Ordinary code handles predictable work. Agent or model capabilities handle ambiguous, nondeterministic tasks within that same program. Authors should not have to rebuild authentication, service wiring, webhook hosting, scheduling, or process management for every automation.
+Growth means being able to extend, connect, and revise this system over time. It does **not** imply automatic model training, unrestricted self-modification, universal conversation memory, or an autonomous agent that decides what your system should become. How changes are proposed, approved, evaluated, and undone remains to be designed. Users decide how much initiative to delegate.
 
-## Nodes are ordinary programs
+Automations are one useful expression of this intelligence. They are not the product's defining identity. Likewise, portable tooling is an enabling capability, not the whole purpose of Alloy.
 
-A node can be as simple or as complex as its task requires:
+## Start through the interfaces people already use
 
-- A routine that runs once and exits.
-- A scheduled task.
-- A long-running watcher or worker.
-- A substantial application using a full native agent SDK, such as Codex.
-- A frontend or browser extension connected to Alloy.
-- A standalone agent using harness SDKs.
-- Telemetry frontend.
-- etc.
+Alloy should complement existing agents and development tools rather than introduce a new primary interface.
 
-A node is not necessarily one workflow step. It may contain an entire automation, many handlers, internal state, and background work. Normal functions, modules, and dependencies remain useful; not every function needs to become a node or shared resource.
+The intended experience is:
 
-The common contract is **communication and capability access**, not a mandatory class structure, language, hosting model, or deployment lifecycle. Alloy may start and supervise a worker, while a frontend or browser extension manages its own lifecycle and connects independently. Nodes need not all be running at the same time.
+1. **Install Alloy**, guided by an installation skill that an existing agent can follow. Installation provides an SDK, a CLI, and an Alloy MCP server; packaging details remain open.
+2. **Describe the system you need to your agent**, or write the code yourself. Server-authoring skills help agents use Alloy effectively without making agent-generated code mandatory.
+3. **Create a server using the SDK.** The server project declares the capabilities and access boundaries the user needs: provider and harness authentication, upstream MCP connections, skills, integrations, and client authentication. Declaring a connection must not mean embedding credentials in source.
+4. **Bring up the local server.** The exact start command, build process, supervision, and configuration API are later decisions.
+5. **Add and evolve nodes** as new needs emerge. Reuse the system's approved capabilities rather than recreate integration and deployment plumbing each time.
 
-The goal is to remove repeated setup and infrastructure work, not ordinary code organization or imports.
+The SDK supports building the server and connected programs. The CLI provides command-line interaction; the Alloy MCP server makes supported Alloy operations available to existing agents. Their exact operation sets, overlap, and authorization are not decided yet. Skills guide usage; they do not grant authority.
 
-## A central collection of capabilities
+An **Alloy MCP server** is different from an **upstream MCP connection** configured as a capability. One lets an agent interact with Alloy; the other gives authorized participants access to tools provided elsewhere. Whether they share a process or listener is not part of this vision.
 
-Configure and discover capabilities in one place, then make approved access available to nodes:
+We are not building a first-party web, TUI, mobile, or desktop interface yet. Users may still build their own interfaces or connect existing ones as nodes; that is different from Alloy shipping its own product UI.
 
-- Harnesses, agent SDK connections, and inference providers.
-- Integrations, MCP tools, and approved CLI operations.
-- Shared instructions, skills, and configuration.
-- Reusable automation capabilities.
+## A server as the system's shared foundation
 
-Nodes declare what they need; Alloy supplies approved access without granting every node all available authority. Registration alone must not expose all credentials, tools, or host files.
+A [server project](server-structure.md) brings together the tooling, configuration, resources, and access policy for an Alloy instance. Start with one local server as the common coordination point, then let connected programs extend the system across environments.
 
-Complex nodes should retain the full native SDK where needed. Alloy can supply connection options and authentication brokering through supported integration paths rather than replacing an SDK with a restrictive `askAgent()` abstraction. Native SDK dependencies still belong to the node's environment; they are not live objects shared across processes.
+The server provides a place to declare and make approved access available to:
 
-"Central" means a common place to configure, discover, and authorize capabilities, not that all code or data must execute or live on the server. It is not a promise of universal shared conversation memory or session migration.
+- Inference providers, including supported local and cloud endpoints.
+- Harnesses and native agent SDK connections.
+- Integrations, upstream MCP servers, and explicitly approved host tools.
+- Instructions, skills, and reusable configuration.
+- Storage or memory resources where the user chooses to configure them.
+- Client identities and permissions for access to the system.
 
-## Execution location is explicit
+“Central” means a common place to configure, discover, and authorize capabilities. It does not require every program, credential, or piece of knowledge to live or execute on one machine. One server is the starting model, not a settled design for federation, replication, or a user's entire lifetime of intelligence.
 
-- **Server-exposed resources** execute on the server under its configured identity and dependencies. Nodes invoke approved operations without needing the underlying credentials.
-- **Node-local services** execute in the node's environment, alongside its files, tools, and runtime. They may work independently or use server resources when authorized.
+Authentication is provider-specific. A technical proxy experiment does not establish that every consumer subscription can be shared or that a provider permits the intended use. Preserve native SDK capabilities through supported integrations rather than replace every harness with a restrictive universal agent API.
 
-A node can compose both without moving its entire automation onto the server. Each capability has its own execution location, permissions, dependencies, and availability. A disconnected node cannot use a server resource merely because it was configured previously.
+## Nodes are ordinary, connectable programs
 
-Authentication support is provider-specific. A successful technical experiment does not establish a supported or permitted integration. Alloy must respect provider restrictions and must not promise that every consumer subscription can be shared across arbitrary workloads.
+Keep the [existing node direction](node-structure.md): reusable, connectable units of execution, written in the language and structure appropriate to their job. A node can be:
 
-## Events connect nodes
+- A routine that runs once or on a schedule.
+- A long-running watcher, worker, or service connector.
+- A substantial program using a full native harness SDK.
+- An agent or a program that uses no model at all.
+- An existing application, a user-built frontend, or a browser extension connected to Alloy.
 
-An emitter/subscriber architecture lets independently written nodes work together. Nodes publish events and subscribe to the events relevant to their work.
+A node is not necessarily one workflow step. It can have internal state, ordinary functions and dependencies, background work, and its own application lifecycle. Handler registration and lifecycle hooks remain useful SDK conveniences; their exact APIs and execution arrangements are not fixed by the vision.
 
-For example:
+Nodes can publish structured events and subscribe to relevant events through the server's broker. Not everything must be an event: resource operations can use request/response, and functions inside a node remain normal function calls. A connector node observes or acts on a service; a resource exposes a capability. Not every configured service needs a node wrapper.
 
-```text
-Browser extension emits: page.saved
-    → Enrichment worker uses Codex
-    → Worker emits: page.enriched
-        → Notes integration saves the result
-        → Frontend updates its view
-```
+Alloy-managed programs and independently hosted programs should both fit the model. Which execution modes are implemented first, how nodes start, and what delivery guarantees they receive are open decisions. An event broker alone promises neither durable delivery nor workflow recovery.
 
-Not everything is an event. Resource operations also need direct request/response interactions, and functions inside a node remain normal function calls. Use events where decoupling helps rather than forcing every operation into a distributed workflow.
+## Reading the Teralith example
 
-Delivery and failure behavior must be explicit. Event-based communication alone does not imply durable delivery, replay, retries, or exactly-once execution. One-shot and intermittently connected nodes need lifecycle and delivery behavior appropriate to their use case.
+In the supplied sketch, **Teralith** is an example user's Alloy server—not a built-in agent or a required system layout:
 
-## What Alloy should make easier
+- Notion and editor watchers publish changes into the system.
+- A command watcher subscribes to relevant changes and emits recognized commands.
+- A “dreamer” node receives activity events, uses approved harness configuration and a chosen workspace, and emits its results back into the system.
+- Shared setup keeps each node from having to reinvent harness login, MCP access, service configuration, and resource discovery.
 
-- Configure shared connections once rather than repeat service setup in every automation.
-- Use reusable trigger primitives for webhooks, schedules, polling, and events.
-- Start and supervise managed nodes without requiring each author to reinvent deployment plumbing.
-- Connect independently hosted nodes without assuming Alloy owns their lifecycle.
-- Understand what is running, what configuration loaded, where an operation executes, and why it failed.
-- Compose simple scripts and sophisticated intelligent programs without imposing a new programming model on all their internal code.
+The important idea is a collection of useful, independently understandable capabilities that can grow together. The dreamer's behavior, `DREAM.md`, event names, and storage layout are application choices, not Alloy requirements. The sketch does not decide whether the dreamer may modify the system or where its workspace lives.
 
-Deployment cannot erase real differences between environments. Alloy should manage or explain the necessary setup, not pretend that dependencies, files, identities, or network access are identical everywhere.
+## Boundaries that should survive implementation choices
 
-## Build toward the vision incrementally
+- **User-owned and inspectable:** users should be able to understand and change their system rather than depend on an opaque hosted intelligence. Export, backup, migration, and change-history mechanisms still need design.
+- **Explicit authority:** registration or agent-written code does not grant every credential, tool, or file. Separate provider authentication, client identity, resource permissions, and host execution access.
+- **Explicit execution location:** server resources execute where configured; node-local tools execute in the node's environment. A remote node does not inherit a laptop's browser, filesystem, or login. A disconnected node cannot use an unavailable server resource.
+- **Complement existing ecosystems:** retain native application and harness APIs. Do not require replacing workflow frameworks, agent interfaces, or ordinary code organization.
+- **Agnostic by direction, specific in support:** language, runtime, OS, provider, and harness independence are goals. Each supported combination needs an actual integration and tests; not all combinations work on day one.
+- **Efficient and secure by evidence:** low overhead and secure information exchange are goals, not unmeasured fastest-transport or absolute-security claims.
 
-Keep the useful work on node connections, shared resources, execution locality, and native SDK options. These are building blocks for the automation experience, not separate product directions.
+## How to test the direction
 
-First, make one real personal automation useful end to end: configure its services, write/register a node, run it, trigger it, and inspect the result or failure. Then add a differently shaped node to test whether the primitives generalize.
+Start with a small personal system: an agent helps create a local server, configures one useful capability, and connects a node that does real work. Add a second node that reuses that setup and exchanges meaningful information with the first.
 
-Start with one managed execution environment and simple configuration. Do not require a database, durable workflow engine, universal configuration translator, polished Alloy SDK, or support for every node type to prove the core experience. Those are later decisions driven by actual automations.
+Then change a need or preference and see whether the system can be adapted without rebuilding its foundation. Inspect the resulting behavior, effective permissions, failures, and how the change can be stopped or undone.
 
 The practical test is:
 
-> Does the second automation require substantially less plumbing than the first, while still allowing the author to write the program they need?
+> Does the system become more useful as you and your agents extend it, while keeping setup, authority, and ongoing maintenance understandable?
 
-This document describes the intended direction, not a claim that these capabilities are already implemented. Detailed architecture and prototype notes should be evaluated against this vision.
+Use this test to choose implementation work. Do not make a durable workflow engine, cloud deployment platform, polished UI, or universal configuration translator a prerequisite unless a concrete need demonstrates why it is necessary.

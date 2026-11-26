@@ -1,21 +1,29 @@
 # What should an Alloy server project look like?
 
-I’d make the server **a small composition root for your automation environment**: configure shared capabilities, approve nodes, wire entry points, and start the runtime.
+The server is **a small composition root for your personal intelligent system**: configure shared capabilities, approve access, connect nodes, and start the runtime.
 
 In other words:
 
 - The server owns the registry, node connections, event routing, resource authorization, and shared gateway.
 - Your server project says what capabilities exist and which nodes may use them.
-- Nodes contain the automation logic. The server does not need to contain every automation or import every node's implementation.
-- Go is the initial server implementation language. Nodes remain independent programs in their own languages and environments.
+- Nodes contain application behavior. The server does not need to contain every capability's logic or import every node's implementation.
+- The examples use Go, reflecting current exploration rather than a final server SDK language decision. Nodes remain ordinary programs in their own languages and environments.
 
 This complements [the node structure](node-structure.md) and [the product vision](vision.md).
 
 **All layouts, APIs, configuration fields, and commands below are design sketches, not implemented interfaces.** Start with explicit primitives; do not build a polished SDK just to reproduce these examples.
 
+## Intended authoring experience
+
+Users install Alloy through their existing tools, with an installation skill to guide their agent. An SDK, CLI, and Alloy MCP server support the experience; server-authoring skills help agents create an SDK-based server for the user's needs. Writing the same server by hand is equally valid. Exact installation, API, launch, and supervision mechanisms remain open.
+
+Server setup should support explicit declarations for provider authentication, harness authentication/connections, upstream MCPs, skills, service integrations, and client authentication/authorization. These declarations reference protected credentials rather than embedding secrets in source. The Alloy MCP server used by an authoring agent is not the same concept as an upstream MCP exposed to nodes. Its administrative operations and deployment shape still need design.
+
+There is no first-party Alloy UI commitment in this phase. See the [vision](vision.md) for the product boundaries that take precedence over the API sketches below.
+
 ## A small server project
 
-One server project could hold your personal automation setup:
+One server project could hold the shared foundation of your personal intelligent system:
 
 ```text
 my-alloy/
@@ -254,11 +262,11 @@ Keep the entry point focused on assembly and lifetime:
 
 A trusted Go node may be explicitly linked into the server as an optional adapter. That is not dynamic Go source loading, and it shares the server's memory and OS privileges. It should use the same logical event/resource contract without pretending to be an isolated process.
 
-## Code-first, without requiring custom servers forever
+## SDK-led construction, with launch details still open
 
-For the current direction, a small Go-coded composition root is a useful way to test the primitives. Users or their coding agents can assemble custom adapters without waiting for a large declarative schema.
+SDK-based server construction is part of the intended user journey, not merely an advanced escape hatch. A small Go-coded composition root is one candidate for testing the primitives. Users or their coding agents can assemble custom adapters without waiting for a large declarative schema.
 
-Later, a stock server executable can load declarative setup for users who need no custom code. Both entry points should assemble the same runtime and enforce the same checks. A source file is not a running server identity, and the eventual CLI should not require every user to build a bespoke binary for routine setup.
+A stock server executable loading declarative setup is another possible convenience, not a selected default or an obligation to implement both paths. If offered, it should assemble the same runtime and enforce the same checks. A source file is not a running server identity; how the CLI builds, starts, and identifies SDK-authored servers remains open.
 
 This is an incremental path, not a commitment to implement both entry points immediately. The current prototype commands remain demonstrations rather than the server API shown here.
 
@@ -274,4 +282,4 @@ Make the minimum server contract:
 6. A shared gateway that can forward approved webhooks without node listening ports.
 7. Status and errors that explain what ran, where it ran, and why it failed.
 
-Build one personal automation with these primitives first. Keep the setup small enough that adding the next automation mainly means writing its behavior and declaring what it needs—not rebuilding the server or inventing another infrastructure stack.
+Build one useful personal system with these primitives first. Keep the setup small enough that adding or refining a node mainly means writing its behavior and declaring what it needs—not rebuilding the foundation or inventing another infrastructure stack. Automations can demonstrate this, but do not define the product's scope.

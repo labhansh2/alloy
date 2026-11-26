@@ -1,12 +1,14 @@
 # Authentication, authorization, and sandboxing
 
-Alloy should make new automations easy to run without granting every program access to the user's entire environment.
+Alloy should make a growing personal intelligent system easy to extend without granting every connected program access to the user's entire environment.
 
 The core idea is:
 
 > Approve a runner and a capability profile once. Automatically provision individual nodes within that boundary, while checking access on every operation.
 
 This is a proposed design, not implemented security functionality. It complements [the security model](security.md), [node structure](node-structure.md), and [server structure](server-structure.md). Configuration examples are illustrative, not a finalized schema or protocol.
+
+Runner profiles and container execution below are candidate mechanisms, not a decision about how all nodes must run. SDK, CLI, and Alloy MCP access also need explicit client roles and permissions; agent-facing skills are guidance, not authorization. See [design status](../private/design-status.md).
 
 ## Three separate questions
 

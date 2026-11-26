@@ -1,5 +1,7 @@
 # Security and resource model
 
+**Status: proposed protections and acceptance constraints, not implemented guarantees.** The specific certificate, enrollment, vault, and delegation mechanisms below remain candidates. The [vision](vision.md) requires explicit authority and execution location. The Alloy MCP interface, CLI, and SDK must not bypass those boundaries.
+
 ## Trust boundaries and threat model
 
 Protect one user's server from other users, compromised or overprivileged nodes, network observers, accidental repository leaks and lost node credentials. The server host's administrator, an attacker with server-process access, and trusted in-process Go code can generally read or use server resources: encryption at rest does not protect an unlocked vault from them. A privileged host runner can execute code on its host and must be treated accordingly. This design does not claim to sandbox hostile code, prevent authorized nodes from exfiltrating data they legitimately receive, or protect an already compromised endpoint.
@@ -8,7 +10,7 @@ Default bind to loopback/local socket. Remote exposure is an explicit setup acti
 
 ## Principals, enrollment and authorization
 
-See [Authentication and sandboxing](auth-and-sandboxing.md) for the proposed low-friction runner/profile flow and execution modes. An administrator may approve a bounded delegation policy once, allowing an authenticated runner to request server-issued credentials for new nodes within that policy without per-node prompts. This does not remove instance authentication or per-operation authorization. The direct enrollment flow below is one proposed remote setup path, not a requirement to manually enroll every runner-managed node.
+See [Authentication and sandboxing](research/auth-and-sandboxing.md) for the proposed low-friction runner/profile flow and execution modes. An administrator may approve a bounded delegation policy once, allowing an authenticated runner to request server-issued credentials for new nodes within that policy without per-node prompts. This does not remove instance authentication or per-operation authorization. The direct enrollment flow below is one proposed remote setup path, not a requirement to manually enroll every runner-managed node.
 
 Each server has a generated stable instance ID and TLS identity, and its own CA or equivalent trusted identity root. An administrator is bootstrapped locally via restrictive OS permissions; remote admin access must be separately configured. A node definition has an ID; each running installation has a distinct revocable credential and instance ID. A host runner is its own principal, not an implicit administrator.
 

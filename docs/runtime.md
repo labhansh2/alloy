@@ -1,6 +1,8 @@
 # Node runtime, environments and deployment
 
-See [deployment research](deployment-research.md) for current platform constraints and the proposed local-first, optional cloud-deployment experience. Embedded SDK integrations remain part of their user's existing deployment; standalone nodes and the Alloy server have separate hosting requirements. This document's broader runtime and durability plans are proposals, not prerequisites for the current prototype.
+**Status: candidate runtime design.** The [vision](vision.md) preserves ordinary connected programs and starts with an SDK-authored local server. Exact node execution, required manifests, runner behavior, language release order, storage, and transport choices below are proposals, not settled requirements. existing applications need not surrender their lifecycle to Alloy.
+
+See [deployment research](research/deployment-research.md) for current platform constraints and the proposed local-first, optional cloud-deployment experience. Embedded SDK integrations remain part of their user's existing deployment; standalone nodes and the Alloy server have separate hosting requirements. This document's broader runtime and durability plans are proposals, not prerequisites for the current prototype.
 
 ## Definition, installation and execution
 

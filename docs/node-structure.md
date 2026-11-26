@@ -1,12 +1,14 @@
 # What should a node look like in each language?
 
-I’d make a node **a registered set of handlers with an optional lifecycle**, and make the **executable process the default integration boundary**.
+A node is **an ordinary, reusable, connectable program**. A registered set of handlers with an optional lifecycle is a useful authoring style, not the definition of every node. Preserve the plain-function examples below while leaving exact APIs, required metadata, and execution modes open.
 
-In other words:
+**Status: proposed authoring patterns, not finalized interfaces.** Existing applications, watchers, connectors, agents, and user-built frontends can participate without turning every internal function into an Alloy handler. The [vision](vision.md) and [design status](design-status.md) take precedence where earlier sketches prescribe a mandatory manifest, runner, or SDK-owned main loop.
+
+For a standalone handler-based node, one possible design is:
 
 - The user writes ordinary functions and registers them with the Alloy SDK.
 - A small `main` entry point starts the node runtime.
-- The server connects to the running node through the Alloy protocol; it does **not** instantiate a Python class or TypeScript object directly.
+- The running node connects to the server through the Alloy protocol; the server does **not** instantiate a Python class or TypeScript object directly.
 - For trusted Go code compiled into the server, Alloy can provide an optional in-process adapter using the same handler contract.
 
 This gives each language an idiomatic API without making Alloy’s architecture depend on one language’s object model.
@@ -23,7 +25,7 @@ my-node/
 └── dependency lockfile
 ```
 
-The manifest tells Alloy **how to start the node and what it requests**. The code tells the SDK **what to do**.
+In this candidate layout, the manifest tells Alloy **how to start the node and what it requests**. The code tells the SDK **what to do**. Whether this metadata must be a manifest, can be declared in code, or is needed for independently managed applications remains open. Metadata requests access; it never grants it.
 
 ```yaml
 apiVersion: alloy.dev/v1alpha1
@@ -184,9 +186,9 @@ async def stop(ctx):
 
 A long-running watcher can publish events from its background task; a worker can simply register handlers. For more complex nodes, users can wrap state and handlers in a class—but that remains an application choice.
 
-### My recommendation
+### Candidate standalone-node contract
 
-Make the **minimum node contract**:
+For the handler-based authoring style, evaluate:
 
 1. A manifest describing how to run it and what it requests.
 2. An executable entry point that starts the SDK.
@@ -194,4 +196,4 @@ Make the **minimum node contract**:
 4. An SDK-managed outbound connection to the server.
 5. Explicit capability approval by the server.
 
-Then offer **embedded Go registration as an optimization**, not as the foundational node model. This keeps the simple case small, makes remote and multi-language nodes natural, and still leaves room for the channel-based path already present in Alloy.
+Embedded Go registration remains an optional trusted integration, not the foundational node model or an isolation boundary. A program with its own lifecycle may instead use Alloy only where it needs events or capabilities. The exact process, connection, and managed execution mechanisms will be decided later; the existing channel path is one experiment, not a universal node requirement.
