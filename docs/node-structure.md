@@ -47,6 +47,10 @@ resources:
 
 The manifest should not contain server credentials or hard-code a server. A node can be registered with different servers, subject to each server’s approval.
 
+We can also add very trivial subscriptions as inbuilt triggers for eg webhook can be trivial and when a node subcrbes to a webhook it shuold just use the options (auth and secret) related to the wbehook service and have options in the yaml to mention the hook url right there. We can think of more such trivial triggers like scheduled execution, tickers, polling, etc. -- just like we had in the legacy code.
+
+We still need to think more on dependency management.
+
 ### Go
 
 Use a `main` package for a standalone node, with normal functions as handlers:

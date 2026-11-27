@@ -177,6 +177,14 @@ Provider integrations are not interchangeable. The current Codex auth proxy is e
 
 Node-local services do not belong in the server's resource registry just because they exist. A local filesystem watcher or tool remains part of the node unless it is deliberately exposed as an approved provider in a future design.
 
+### Share access, not upstream secrets
+
+Treat a request such as `openai.options` as a request for an approved capability, not a configuration bag containing provider credentials. Where a supported integration permits it, the node SDK can supply native-compatible connection settings: an Alloy endpoint, a scoped Alloy credential, and nonsecret options. Alloy authorizes requests and authenticates upstream; the native harness and workspace can remain on the node.
+
+YAML, if used, requests capabilities and references configuration; it neither stores secrets nor grants access. Exact declarations, descriptors, and adapters remain undecided. An integration requiring upstream credentials on the node needs an explicit security/product decision, never a silent fallback.
+
+**Proposed first resource:** a harmless named operation such as `preferences.read`. First prove authenticated access, an allowed call, and a denied call; then add provider/harness connectivity. Provider options mix configuration, authentication, native-client compatibility, and execution location, making them a poor first boundary test. This is a proposed sequence, not an implemented resource API.
+
 ## Register nodes separately from granting access
 
 The node's manifest says what it requests. Server-side bindings say what is approved and whether Alloy should run it.
@@ -282,6 +290,14 @@ SDK-based server construction is part of the intended user journey, not merely a
 A stock server executable loading declarative setup is another possible convenience, not a selected default or an obligation to implement both paths. If offered, it should assemble the same runtime and enforce the same checks. A source file is not a running server identity; how the CLI builds, starts, and identifies SDK-authored servers remains open.
 
 This is an incremental path, not a commitment to implement both entry points immediately. The current prototype commands remain demonstrations rather than the server API shown here.
+
+## Interactive authentication during server setup
+
+A server may integrate with services that require a user to authenticate interactively. One possible setup experience is a login mode on the server executable—for example, a future `go run ./cmd/home --login --browser` command—that opens the relevant provider or service login pages in the user's browser. The exact command-line options and whether the browser is local, remote, or otherwise mediated are undecided.
+
+The intended outcome is that the user completes each required authentication flow during setup rather than configuring every service through a separate manual process. This is not necessarily one authentication across unrelated services: each service may require its own consent, account, or login flow. After successful authorization, the server could retain credentials in protected host storage, refresh tokens when supported, and use service-specific authentication logic when making requests.
+
+This remains a design idea, not an implemented capability or a commitment to a particular OAuth library, credential store, or browser flow. Any implementation must make requested scopes and services visible, keep secrets out of source code and logs, handle revocation and refresh failures, and distinguish user login credentials from node-instance authentication and client access grants. Services that do not support refresh tokens or browser-based authorization will need an explicit alternative, and some credentials may require re-authentication.
 
 ## My recommendation
 

@@ -8,6 +8,8 @@ Protect one user's server from other users, compromised or overprivileged nodes,
 
 Default bind to loopback/local socket. Remote exposure is an explicit setup action with TLS, authentication, authorization, firewall guidance and visible status. A tunnel does not replace authentication. No administrative access, secret value, connection string or host environment is granted just because a node is registered.
 
+The minimal Go SDK currently exposes only a health check and has no client authentication. Loopback is not authentication: other local processes can connect. Add authentication and per-operation authorization before exposing resources or administrative operations. Scoped, revocable local client tokens are one candidate; remote access also requires verified server identity and TLS.
+
 ## Principals, enrollment and authorization
 
 See [Authentication and sandboxing](research/auth-and-sandboxing.md) for the proposed low-friction runner/profile flow and execution modes. An administrator may approve a bounded delegation policy once, allowing an authenticated runner to request server-issued credentials for new nodes within that policy without per-node prompts. This does not remove instance authentication or per-operation authorization. The direct enrollment flow below is one proposed remote setup path, not a requirement to manually enroll every runner-managed node.
@@ -28,6 +30,8 @@ Policy defaults to deny and is scoped by server, principal, action and resource/
 ## Resource gateway
 
 Expose narrowly defined operations rather than shipping credentials to every worker:
+
+For provider/harness access, prefer native-compatible connection settings backed by an authorized Alloy gateway over exporting upstream login material; see [resource sharing](server-structure.md#share-access-not-upstream-secrets). Keeping upstream secrets private does not remove delegated authority: a node's Alloy credential can still enable usage, spending, and access to returned data. Scope access by capability, operations/models where enforceable, expiry, revocation, and usage limits. Gateway compatibility and permitted authentication must be verified per integration.
 
 - **Integration/MCP**: server invokes an approved operation using its credential, applies principal/operation policy, timeouts, rate and response limits, records metadata, and returns the permitted result. MCP tools are external code/data: treat tool descriptions and returned text as untrusted, never as authority to override policy. MCP server startup and network access need administrator approval.
 - **CLI**: prefer typed adapters or allowlisted command + argument schema. Run on an explicitly named host with restricted environment, working directory, timeout and output size. `aws`/`gh` credentials and profiles are host-specific; do not offer a generic unrestricted shell as a safe resource. Shell metacharacters must not be interpreted when invoking an argument vector. A command with broad credentials still carries broad authority; policy cannot make it intrinsically narrow.
