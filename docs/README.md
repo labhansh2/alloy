@@ -17,8 +17,7 @@ These are proposed designs. Broader release and transport plans are not requirem
 
 ## Prototypes
 
-The public Go server SDK slice is described in [server structure](server-structure.md#implemented-first-slice); run its standalone example with `go run ./cmd/minimal-server`. It covers server lifetime and local node sessions, not the resource/event capabilities demonstrated by the separate prototypes below.
-The [minimal Go node](node-structure.md#implemented-first-slice-standalone-go-node) adds a manually launched, local-only connection and lifecycle, without YAML, authentication, resources, or event handlers.
+The public Go server SDK is described in [server structure](server-structure.md#implemented-first-slice). The [minimal Go node](node-structure.md#implemented-first-slice-standalone-go-node) provides local sessions and direct provider access. [OpenAI setup](server-structure.md#openai-login-and-the-minimal-example) supports explicit browser login for eligible ChatGPT-plan usage or API-key entry, while the node uses the native SDK. Provider grants and Alloy client tokens remain separate from upstream login. YAML, event handlers, remote enrollment, and universal OAuth support are not implemented by this slice.
 
 - [Shared prototype server](prototype/prototype-server.md)
 - [Events prototype](prototype/events-prototype.md)

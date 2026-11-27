@@ -1,6 +1,6 @@
 # Security and resource model
 
-**Status: proposed protections and acceptance constraints, not implemented guarantees.** The specific certificate, enrollment, vault, and delegation mechanisms below remain candidates. The [vision](vision.md) requires explicit authority and execution location. The Alloy MCP interface, CLI, and SDK must not bypass those boundaries.
+**Status: implemented local provider controls are identified below; broader protections remain proposals and acceptance constraints.** The specific certificate, enrollment, vault, and delegation mechanisms below remain candidates. The [vision](vision.md) requires explicit authority and execution location. The Alloy MCP interface, CLI, and SDK must not bypass those boundaries.
 
 ## Trust boundaries and threat model
 
@@ -8,7 +8,11 @@ Protect one user's server from other users, compromised or overprivileged nodes,
 
 Default bind to loopback/local socket. Remote exposure is an explicit setup action with TLS, authentication, authorization, firewall guidance and visible status. A tunnel does not replace authentication. No administrative access, secret value, connection string or host environment is granted just because a node is registered.
 
-The minimal Go SDK currently exposes a health check and handshake-only local node sessions, without client authentication. A node name is untrusted metadata, not identity or authority; these sessions expose no resources or administrative operations. Browser-origin sessions are rejected, but loopback is not authentication: other local processes can connect. Add authentication and per-operation authorization before exposing protected operations. Scoped, revocable local client tokens are one candidate; remote access also requires verified server identity and TLS.
+The Go SDK currently exposes a health check, local node sessions, and explicitly registered native HTTP provider connections. Provider access requires a registered bearer token and a matching provider grant; each request checks expiry/revocation. Supplied credentials also authenticate node handshakes, while anonymous handshakes retain no provider authority. A node name is untrusted metadata, not identity or authority. Browser-origin access is rejected, but loopback alone is not authentication: other local processes can connect. There are no administrative HTTP endpoints. See [implemented provider boundaries](server-structure.md#implemented-provider-connections); remote access still requires verified server identity and TLS.
+
+Current client tokens are operator-provisioned, stored as hashes in memory, and must not be reused across servers. `RevokeClient` prevents future admissions but does not undo/cancel in-flight requests or terminate the handshake-only session. Zero expiry lasts until revocation/process exit; persistent enrollment, automatic renewal, and per-provider token issuance remain future work. Same-user processes may steal client tokens; this local slice is not a hostile-code isolation boundary.
+
+OpenAI's explicit login integration supports hidden API-key entry or its documented local/open-source ChatGPT-plan OAuth flow. It validates PKCE/state, signed issuer/audience/expiry/nonce and account identity, and granted plan scopes before saving. Stored token sets are encrypted with an OS-credential-store key, replaced atomically, and refreshed under a cross-process lock; no plaintext fallback or automatic browser launch occurs at normal startup. This is a specific integration, not a generic encrypted vault or production security review. Same-user/server compromise can still use unlocked credentials; login eligibility and live account access were not verified during implementation. See [setup and limitations](server-structure.md#openai-login-and-the-minimal-example).
 
 ## Principals, enrollment and authorization
 
@@ -41,11 +45,11 @@ For provider/harness access, prefer native-compatible connection settings backed
 
 ### Native connection boundaries
 
-A native gateway can authorize access to a named upstream/account without translating its API. This is broader authority than an allowlisted operation: model, tool, or operation restrictions require protocol-aware enforcement and must not be claimed for opaque forwarding. Preserve native behavior only within the explicitly granted boundary; inspection/filtering and compatibility limits must be visible.
+A native gateway can authorize access to a named upstream/account without translating its API. The implemented provider grant covers supported HTTP operations beneath its fixed base URL; it does not enforce model, operation, or spending limits. This is broader authority than an allowlisted operation: such restrictions require protocol-aware enforcement and must not be claimed for opaque forwarding. Preserve native behavior only within the explicitly granted boundary; inspection/filtering and compatibility limits must be visible. A configured upstream and server-side authenticator are trusted; native response bodies are not scrubbed for secrets an upstream itself returns.
 
 Bind upstream authentication to operator-approved destinations. Node-supplied URLs, redirects, headers, or tunnel targets must not turn the gateway into an arbitrary proxy or redirect credential injection. Upstream credentials and Alloy client credentials are different authorities; preserve that distinction on every native protocol path, not only the node session.
 
-Harness compositions reference capabilities but cannot grant them. Supported account-login flows and API-key connections retain separate scopes/entitlements; provider-agnostic clients do not make credentials interchangeable. Future directory/workspace/tunnel access requires explicit host, path or target, read/write authority, and lifecycle semantics—not ambient filesystem access. These are design constraints, not implemented gateway protections.
+Harness compositions reference capabilities but cannot grant them. Supported account-login flows and API-key connections retain separate scopes/entitlements; provider-agnostic clients do not make credentials interchangeable. Future directory/workspace/tunnel access requires explicit host, path or target, read/write authority, and lifecycle semantics—not ambient filesystem access. Those composition and filesystem protections remain design constraints, not implemented features.
 
 ## Vault and key lifecycle
 

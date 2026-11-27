@@ -12,6 +12,7 @@ import "alloy/node"
 n, err := node.New(node.Config{
     Name:      "deployment-watcher",
     ServerURL: "http://127.0.0.1:8080", // Use the running server's address.
+    // ClientToken: protectedAlloyToken, // Optional; required for provider access.
 })
 if err != nil {
     return err
@@ -22,7 +23,13 @@ return n.Run(ctx)
 
 `New` validates configuration without connecting or installing anything. `Run(ctx)` makes an outbound connection, completes a versioned handshake, and waits until cancellation or disconnection. Canceling the caller's context stops normally; connection/handshake failures and server disconnection return errors. Each instance runs once, with no automatic reconnect. `Ready()` closes after a successful handshake, remains closed after disconnection, and never closes on startup failure; callers waiting on it must also observe the run result or their context.
 
-The current transport is an internal WebSocket session, not part of the public authoring API. Nodes do not open a listening port. This first slice supports only HTTP URLs with a literal loopback IP and explicit port; it rejects remote hosts, redirects, proxies from environment configuration, and browser-origin sessions. It has **no authentication, grants, resources, events, handlers, or durable node registration yet**. A supplied name is descriptive metadata, not identity; handshake success does not prove server identity or authorize access. Authentication/authorization must precede protected operations, and remote connections require a separate secure design.
+The current session transport is an internal WebSocket connection, not part of the public authoring API. Nodes do not open a listening port. This slice supports only HTTP URLs with a literal loopback IP and explicit port; it rejects remote hosts, redirects, proxies from environment configuration, and browser-origin sessions. An optional `ClientToken` authenticates the connection; without it, the session is anonymous and handshake-only. A supplied name is descriptive metadata, not identity. Handshake success does not prove server identity or grant provider access. There are no events, application handlers, or durable node registration yet; remote connections require a separate secure design.
+
+### Use a registered provider
+
+With a server-approved `ClientToken`, `n.Provider(ctx, "openai")` checks access and returns native client settings: `connection.BaseURL()` and `connection.Token()`. Feed these into a compatible native SDK or HTTP client; the upstream key stays on the server. This access check is a separate authenticated HTTP request and does not require `Run`. Every subsequent gateway request rechecks authorization, so a previously obtained connection does not bypass revocation. The settings retain the client's existing grants, rather than minting a narrower token.
+
+For OpenAI, `client := openai.Client(connection)` from `alloy/provider/openai` returns the native SDK configured with the Alloy connection. A one-shot request needs neither `n.Run` nor lifecycle/transport goroutines. See [provider setup and login](server-structure.md#openai-login-and-the-minimal-example). The connection itself has no background lifecycle; callers own native requests, streams, and cleanup. Anonymous nodes cannot obtain provider access. Browser/OAuth login happens only on the server; upstream credentials never need to be copied to the node.
 
 Run the examples in separate terminals:
 
@@ -31,6 +38,8 @@ go run ./cmd/minimal-server
 # Use the URL printed by the server, replacing PORT below.
 go run ./cmd/minimal-node -server http://127.0.0.1:PORT -name deployment-watcher
 ```
+
+The minimal server registers OpenAI, so complete its login setup and provision the shared Alloy client token first. A bare `server.New()` in other programs still needs no provider or account.
 
 ### One node concept, optional declarative metadata
 

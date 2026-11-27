@@ -20,9 +20,63 @@ srv := server.New() // import "alloy/server"
 err := srv.Run(ctx)
 ```
 
-Run it with `go run ./cmd/minimal-server`. This needs no Alloy CLI, mux, or protocol setup in user code. `New` has no external side effects; `Run` opens an available loopback port and owns startup and shutdown. Cancel the context to stop. Each instance runs once; create a new instance for another run. Optional `Ready()` and `Addr()` methods expose startup completion and the bound address without requiring log scraping.
+Run the OpenAI example with `go run ./cmd/minimal-server` after the authentication setup below. No Alloy CLI, mux, or protocol setup is needed in user code. `New` has no external side effects; `Run` checks managed provider auth before opening an available loopback port, reports its URL, and owns shutdown. It never starts browser login implicitly. Cancel the context to stop. Each instance runs once, even on startup failure; create another instance to retry. Optional `Ready()` and `Addr()` expose startup completion and the bound address.
 
-This slice has an internal health check and a minimal local-only [node session](node-structure.md#implemented-first-slice-standalone-go-node). Session names are unauthenticated metadata and grant no capabilities. There is no resource registration, event transport, provider connection, client authentication, persistent identity/state, or protocol selection. It does not yet replace the richer prototype server. The example prints its bound URL so a separately launched node can connect.
+The server also supports local [node sessions](node-structure.md#implemented-first-slice-standalone-go-node) and the provider connections below. Anonymous sessions remain handshake-only; names alone grant no capabilities. There is no event transport, administrative endpoint, persistent identity/state, or protocol selection. It does not yet replace the richer prototype server. The example prints its bound URL so a separately launched node can connect.
+
+## Implemented provider connections
+
+Register OpenAI in one call; its integration owns endpoint and credential setup. Client grants remain explicit and separate:
+
+```go
+if err := srv.AddProvider("openai", openai.Provider()); err != nil {
+    return err
+}
+
+if err := srv.AddClient("minimal-node", server.Client{
+    Token:     os.Getenv("ALLOY_CLIENT_TOKEN"),
+    Providers: []string{"openai"},
+}); err != nil {
+    return err
+}
+```
+
+The imports are `alloy/provider/openai`, `alloy/server`, and `os`. On the node, `connection, err := n.Provider(ctx, "openai")` checks access and `client := openai.Client(connection)` configures the **native OpenAI SDK**. Use `client.Responses` or other supported native APIs directly—no Alloy inference wrapper, hand-written HTTP transport, goroutine, or idle node session is required for a single request. Generic clients can still use `BaseURL()`, `Token()`, and `HTTPClient()`.
+
+The returned token is the client's Alloy credential with its existing grants—not the upstream key or a newly narrowed per-provider token. Every gateway request checks grants, expiry, and revocation independently of the WebSocket session. Node names remain descriptive; authenticated client identity comes from the token.
+
+Other HTTP services can still use `provider.Config{BaseURL: ..., Auth: ...}`. `provider.Authenticator` is a concurrent-safe request callback and `provider.BearerToken` supplies static bearer auth. Optional `CheckAuth` and `Login` callbacks let integrations own setup; `Run` performs auth preflight, while explicit `srv.Login(ctx, provider.LoginOptions{Method: ...})` invokes login before `Run`. These hooks do not normalize provider inference APIs.
+
+Providers require HTTPS, except explicitly registered loopback HTTP services. The gateway preserves native bodies, query parameters, status/error responses, and HTTP streaming; it replaces caller authentication with server-side auth and strips ambient cookies, forwarding identity, and common authentication headers. Service-specific header/account-selection constraints belong in the registered authenticator, not a provider catalog in Alloy. Redirects, protocol upgrades, and traversal-style paths are unsupported. Defaults bound request bodies to 1 MiB and total request duration to one minute; `MaxRequestBytes` and `Timeout` customize these limits.
+
+**Authority and lifecycle:** a grant covers all supported HTTP operations beneath the configured upstream base URL, not just inference or a selected model. No model filtering, spending/concurrency quotas, automatic retries, or full provider-protocol compatibility is promised. `AddProvider` / `AddClient` are pre-start configuration; `RevokeClient` denies subsequent admissions but does not cancel already admitted work or disconnect an otherwise idle node session. `Client.ExpiresAt` is optional; zero lasts until revocation/process exit. Use distinct random client tokens of at least 32 printable non-whitespace ASCII characters, never names or upstream API keys. Tokens are hashed in the server registry; upstream auth remains in server memory. Local transport still lacks verified server identity and protection against same-user credential theft.
+
+### OpenAI login and the minimal example
+
+The minimal server now always registers OpenAI. Missing credentials stop startup with a `--login` instruction, before opening a listener. Choose a login method:
+
+```sh
+go run ./cmd/minimal-server --login              # Continue with ChatGPT in the browser
+go run ./cmd/minimal-server --login --auth token # Enter an API key using hidden terminal input
+```
+
+Login saves credentials and exits; no node token is needed for this step. The browser flow prints an authorization link and attempts to open it on the server machine, using a temporary `127.0.0.1` callback. It uses OpenAI's documented dynamic client registration, PKCE, state/nonce validation, signed OIDC identity checks, and granted plan-usage scopes—not copied Codex credentials. Availability depends on app/account eligibility under OpenAI's local/open-source preview; a hosted commercial gateway is not implied.
+
+Saved credentials are encrypted atomically using AES-GCM beneath the OS user configuration directory (`alloy/providers/openai/`); the encryption key lives in the OS credential store. There is no plaintext fallback if that store is unavailable. Refreshes are serialized across processes and persist rotating tokens together. Saved account credentials take precedence over `OPENAI_API_KEY`; that server-only environment variable remains available when no login is saved. Use `openai.WithAccount("work")` to keep another registration separate; an existing ChatGPT registration cannot silently switch identity or be replaced by token login. Automatic account picking, logout/revocation UI, and backup/migration of these records are not implemented.
+
+Next, provision a matching random `ALLOY_CLIENT_TOKEN` in the server and node environments; this is separate from OpenAI login. Never pass secrets through command arguments or commit them. In separate terminals:
+
+```sh
+go run ./cmd/minimal-server
+# Replace PORT with the printed server port.
+go run ./cmd/minimal-node -server http://127.0.0.1:PORT -call-provider
+```
+
+The node example hardcodes provider `openai` and model `gpt-6-luna` in `cmd/minimal-node/main.go`; the selected model must be available to the active account. `-call-provider` makes one native SDK streaming Responses call and exits after `response.completed`; interrupted, failed, and incomplete streams are errors. It sends array input and `store: false`, omitting `max_output_tokens` to match the ChatGPT-plan preview contract. API-key usage and ChatGPT plan usage have different billing/limits. The gateway does not rewrite requests to meet these constraints; native callers must follow the selected authentication mode's contract. Without `-call-provider`, the node retains the long-lived handshake-only behavior.
+
+Both examples load an optional `.env` from the current working directory without overriding existing environment values. `ALLOY_SERVER_URL`, `ALLOY_NODE_NAME`, and `ALLOY_PROMPT` supply node defaults; `ALLOY_LOGIN` and `ALLOY_AUTH` supply server login defaults. Flags take precedence. Keep `.env` private and uncommitted; the node needs only its Alloy token, not upstream credentials.
+
+Automated tests cover mock OAuth callbacks, signed identity validation, scope/account rejection, refresh rotation, encrypted storage, and mock inference. A manual minimal-server/node run also returned successful inference using existing server credentials; the active authentication method was not inspected, so this does not establish live browser-login validation or universal account eligibility. Official references checked 2026-11-27: [registration/sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in), [refresh and accounts](https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions), and [preview request constraints](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations).
 
 **All remaining layouts, APIs, configuration fields, and commands below are design sketches, not implemented interfaces.** Start with explicit primitives; do not build a polished SDK just to reproduce these examples.
 
@@ -148,7 +202,7 @@ func NewServer() (*server.Server, error) {
 
 The helper functions are normal project code. They register definitions before startup; they should not start unmanaged background tasks or execute repository-supplied node code merely by discovering it. The initial setup is memory-backed: no database or durable queue is implied.
 
-The configuration and registration APIs above are illustrative; only the minimal `server.New()` / `Run(ctx)` slice described earlier is implemented.
+The configuration APIs in this sketch are illustrative. Only the instance/lifecycle API and `AddProvider` / `AddClient` registrations documented above are implemented.
 
 ## Shared capabilities are configured once
 
@@ -333,13 +387,13 @@ This is an incremental path, not a commitment to implement both entry points imm
 
 ## Interactive authentication during server setup
 
-A server may integrate with services that require a user to authenticate interactively. One possible setup experience is a login mode on the server executable—for example, a future `go run ./cmd/home --login --browser` command—that opens the relevant provider or service login pages in the user's browser. The exact command-line options and whether the browser is local, remote, or otherwise mediated are undecided.
+OpenAI now implements an explicit `--login` mode in the minimal server, as described above. Generalizing this experience to other services, remote browsers, and mediated callbacks remains future work; each integration must use its own supported flow.
 
 The intended outcome is that the user completes each required authentication flow during setup rather than configuring every service through a separate manual process. This is not necessarily one authentication across unrelated services: each service may require its own consent, account, or login flow. After successful authorization, the server could retain credentials in protected host storage, refresh tokens when supported, and use service-specific authentication logic when making requests.
 
 Treat supported browser/account login as a first-class authentication option alongside API keys. Authentication setup should be explicit; normal startup should reuse configured credentials or report that reauthentication is needed, not unexpectedly launch browsers. OAuth authorization does not itself grant inference entitlements: verify the allowed clients, endpoints, scopes, and subscription-backed usage for each integration. A ChatGPT/Codex login is not automatically a general OpenAI API credential. Our experimental proxy does not establish provider permission or a stable supported integration.
 
-This remains a design idea, not an implemented capability or a commitment to a particular OAuth library, credential store, or browser flow. Any implementation must make requested scopes and services visible, keep secrets out of source code and logs, handle revocation and refresh failures, and distinguish user login credentials from node-instance authentication and client access grants. Services that do not support refresh tokens or browser-based authorization will need an explicit alternative, and some credentials may require re-authentication.
+The OpenAI integration does not establish universal OAuth compatibility or a general credential vault. Every additional integration must make requested scopes and services visible, keep secrets out of source/logs, handle revocation and refresh failures, and distinguish upstream credentials from Alloy client grants. Services without refresh tokens or browser authorization need an explicit alternative; some credentials require reauthentication.
 
 ## My recommendation
 
