@@ -7,11 +7,24 @@ In other words:
 - The server owns the registry, node connections, event routing, resource authorization, and shared gateway.
 - Your server project says what capabilities exist and which nodes may use them.
 - Nodes contain application behavior. The server does not need to contain every capability's logic or import every node's implementation.
-- The examples use Go, reflecting current exploration rather than a final server SDK language decision. Nodes remain ordinary programs in their own languages and environments.
+- Go is the selected initial server SDK language; future language support remains open. Nodes remain ordinary programs in their own languages and environments.
 
 This complements [the node structure](node-structure.md) and [the product vision](vision.md).
 
-**All layouts, APIs, configuration fields, and commands below are design sketches, not implemented interfaces.** Start with explicit primitives; do not build a polished SDK just to reproduce these examples.
+## Implemented first slice
+
+The minimal Go SDK now provides instance construction and a blocking run method:
+
+```go
+srv := server.New() // import "alloy/server"
+err := srv.Run(ctx)
+```
+
+Run it with `go run ./cmd/minimal-server`. This needs no Alloy CLI, mux, or protocol setup in user code. `New` has no external side effects; `Run` opens an available loopback port and owns startup and shutdown. Cancel the context to stop. Each instance runs once; create a new instance for another run. Optional `Ready()` and `Addr()` methods expose startup completion and the bound address without requiring log scraping.
+
+This slice has only an internal health check—no resource registration, event transport, provider connections, client authentication, persistent identity/state, or protocol selection. It does not yet replace the richer prototype server.
+
+**All remaining layouts, APIs, configuration fields, and commands below are design sketches, not implemented interfaces.** Start with explicit primitives; do not build a polished SDK just to reproduce these examples.
 
 ## Intended authoring experience
 

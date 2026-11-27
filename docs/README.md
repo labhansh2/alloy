@@ -17,6 +17,8 @@ These are proposed designs. Broader release and transport plans are not requirem
 
 ## Prototypes
 
+The first public Go server SDK slice is described in [server structure](server-structure.md#implemented-first-slice); run its standalone example with `go run ./cmd/minimal-server`. It covers server lifetime only, not the capabilities demonstrated by the separate prototypes below.
+
 - [Shared prototype server](prototype/prototype-server.md)
 - [Events prototype](prototype/events-prototype.md)
 - [Codex prototype](prototype/codex-prototype.md)
