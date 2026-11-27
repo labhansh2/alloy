@@ -39,6 +39,14 @@ For provider/harness access, prefer native-compatible connection settings backed
 - **Secrets/config**: differentiate nonsecret configuration from secret material. Prefer a server-side operation that uses a secret without returning it. Explicit `secret.read` is high-risk, scoped, audited and discouraged; once returned to a node it cannot be recalled. Never promise that environment variables or redaction are fully safe.
 - **Future node-provided resource**: node advertises a namespaced operation schema, server admin approves the provider and caller policy, server brokers calls with timeouts and checks, and provider unavailability is surfaced. A node cannot grant itself access or publish a resource that automatically becomes trusted. Defer to after server-local resources work.
 
+### Native connection boundaries
+
+A native gateway can authorize access to a named upstream/account without translating its API. This is broader authority than an allowlisted operation: model, tool, or operation restrictions require protocol-aware enforcement and must not be claimed for opaque forwarding. Preserve native behavior only within the explicitly granted boundary; inspection/filtering and compatibility limits must be visible.
+
+Bind upstream authentication to operator-approved destinations. Node-supplied URLs, redirects, headers, or tunnel targets must not turn the gateway into an arbitrary proxy or redirect credential injection. Upstream credentials and Alloy client credentials are different authorities; preserve that distinction on every native protocol path, not only the node session.
+
+Harness compositions reference capabilities but cannot grant them. Supported account-login flows and API-key connections retain separate scopes/entitlements; provider-agnostic clients do not make credentials interchangeable. Future directory/workspace/tunnel access requires explicit host, path or target, read/write authority, and lifecycle semantics—not ambient filesystem access. These are design constraints, not implemented gateway protections.
+
 ## Vault and key lifecycle
 
 First preference is an existing external secret manager or OS keychain adapter; the server stores references, not values, when possible. For a built-in vault, require authenticated encryption with a random data-encryption key wrapped by an OS keychain key or a key derived from a user-supplied passphrase using a vetted memory-hard KDF and unique salt. Document algorithm/version, nonces and associated data, permissions and threat boundaries; do not invent crypto. Never store the wrapping key beside ciphertext unprotected. At-rest encryption applies to vault values, not automatically to event payloads, SQLite, backups, logs or process memory.

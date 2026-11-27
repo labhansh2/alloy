@@ -47,6 +47,10 @@ The server provides a place to declare and make approved access available to:
 - Storage or memory resources where the user chooses to configure them.
 - Client identities and permissions for access to the system.
 
+Register native service connections with server-managed authentication rather than build a universal model router. Provider inference, MCP tools, and harness execution remain distinct capabilities. Harness configurations can compose approved connections, skills, and workspace access while retaining native SDKs and options. Supported browser/account authentication and API keys should both fit; their entitlements and compatibility remain integration-specific.
+
+Remote workspaces, approved server directories, HTTPS tunnels, and tunneled directory access are future registry possibilities, not current features. Common discovery and authorization do not require one protocol for every capability. Later placement/path optimization must preserve authority and explicit execution location.
+
 “Central” means a common place to configure, discover, and authorize capabilities. It does not require every program, credential, or piece of knowledge to live or execute on one machine. One server is the starting model, not a settled design for federation, replication, or a user's entire lifetime of intelligence.
 
 Authentication is provider-specific. A technical proxy experiment does not establish that every consumer subscription can be shared or that a provider permits the intended use. Preserve native SDK capabilities through supported integrations rather than replace every harness with a restrictive universal agent API.

@@ -148,11 +148,47 @@ func NewServer() (*server.Server, error) {
 
 The helper functions are normal project code. They register definitions before startup; they should not start unmanaged background tasks or execute repository-supplied node code merely by discovering it. The initial setup is memory-backed: no database or durable queue is implied.
 
-The `server` package above is illustrative. It is not an instruction to create a new public package before the current prototype validates the behavior.
+The configuration and registration APIs above are illustrative; only the minimal `server.New()` / `Run(ctx)` slice described earlier is implemented.
 
 ## Shared capabilities are configured once
 
 Resource registration names the capability and its implementation. It does not grant every connected node access to it.
+
+### Registry and native service connections
+
+The intended server registry covers provider/service connections, tools, MCP gateways, skills, and client authentication/policy. Future entries may include HTTPS tunnels, remote workspaces, approved server directories, and tunneled directory access. These share discovery and authorization concepts, not necessarily a wire protocol or execution mechanism. Registration is not permission, and a directory reference does not copy, mount, or relocate its contents.
+
+For provider inference, keep the boundary thin: **register native service connections with pluggable server-side authentication**, rather than maintain another model router or universal inference API. A named connection identifies an approved upstream endpoint/protocol and account/auth reference. Authorized nodes receive native-compatible Alloy endpoint settings and scoped Alloy credentials; upstream credentials remain on the server. Preserve native SDKs, requests, responses, and supported streaming instead of translating model catalogs or normalizing every provider feature.
+
+New models or upstream API features should generally not require Alloy changes when the native protocol remains compatible. Specialized adapters are still needed where authentication, protocol behavior, or native-client configuration differs. Endpoint overrides are not universally supported. Fine-grained restrictions require protocol-aware enforcement; a transparent connection must not imply model/tool/operation filtering it cannot enforce. See [the security boundary](security.md#native-connection-boundaries).
+
+Separate three concerns without prescribing packages or interfaces yet:
+
+- **Protocol/service adapter:** handles the upstream connection and compatibility requirements, without wrapping every model or operation.
+- **Named account connection:** selects the account and protected authentication source, including an API key or a supported browser/account flow.
+- **Access grants:** determine which clients can use that connection and any enforceable constraints.
+
+For example, an OpenAI API connection and a supported Codex account connection may belong to the same vendor but have different protocols, authentication, billing, and permitted capabilities. They are not interchangeable credentials.
+
+### Harness options compose approved capabilities
+
+A provider connection supplies inference access. A harness integration supplies native execution/session access or native-compatible configuration. Harness options can compose references to approved provider connections, MCP tools, skills/instructions, and a workspace rather than duplicate their authentication setup.
+
+Additional harness settings may cover local-process versus remote-service execution, workspace/filesystem access, session creation/resumption, native binary/SDK compatibility, tool approvals/sandboxing, and cancellation/time limits. Retain native options and APIs; do not flatten these into a universal `agent.run()` or lowest-common-denominator schema. Exact composition APIs remain open.
+
+A provider-agnostic harness can reuse a registered provider connection only when its protocol, endpoint configuration, authentication path, and permitted usage match. A remote harness service may also require its own login, separate from the provider it uses for inference. Referencing a remote workspace or server directory does not make it node-local or move harness execution there.
+
+Later placement/path optimization may reduce server-to-node distance and unnecessary hops. It must preserve grants, credential boundaries, execution location, and required protocol semantics—not silently relocate work or bypass authorization. There is no automatic routing/placement optimization in the current SDK.
+
+### One connection from an existing tool
+
+The intended experience is one explicit connection from an existing tool such as OpenCode, Codex, or Claude Code: authenticate the instance, discover its approved capabilities and available nodes, and configure supported native provider/MCP connections. MCP access alone does not configure inference providers, skills, or sandbox policy. Keep configuration/availability changes discoverable; access to newly added capabilities requires an explicit delegation policy, not automatic administrator authority.
+
+Direct connections should not require a local Alloy server or daemon. An optional future local connector could maintain scoped credentials, prepare native configuration, or bridge HTTP/stdio where needed. It must not silently import logins, expose host resources, or modify tool settings.
+
+For `gh`, `aws`, or another CLI, distinguish an Alloy-mediated operation on an approved execution host from a local shell command. Reuse valid upstream authorization where supported, but local commands do not inherit remote credentials. Seamless local CLI access would need an explicit supported credential helper or execution bridge; instructions alone cannot redirect or secure shell execution. Show the account, execution host, and file-access boundary, and request reauthentication when necessary rather than silently changing accounts or placement.
+
+### Illustrative registration categories
 
 An illustrative registration fragment, assuming `srv` and the adapters have already been constructed:
 
@@ -183,7 +219,7 @@ Treat a request such as `openai.options` as a request for an approved capability
 
 YAML, if used, requests capabilities and references configuration; it neither stores secrets nor grants access. Exact declarations, descriptors, and adapters remain undecided. An integration requiring upstream credentials on the node needs an explicit security/product decision, never a silent fallback.
 
-**Proposed first resource:** a harmless named operation such as `preferences.read`. First prove authenticated access, an allowed call, and a denied call; then add provider/harness connectivity. Provider options mix configuration, authentication, native-client compatibility, and execution location, making them a poor first boundary test. This is a proposed sequence, not an implemented resource API.
+**Validation before provider access:** prove authenticated access, an allowed call, and a denied call. A harmless operation such as `preferences.read` can test that boundary; it is not a required first product feature. A provider-backed example should then exercise a native service connection, not establish a new Alloy-specific inference wrapper. No resource API or final implementation sequence is selected yet.
 
 ## Register nodes separately from granting access
 
@@ -300,6 +336,8 @@ This is an incremental path, not a commitment to implement both entry points imm
 A server may integrate with services that require a user to authenticate interactively. One possible setup experience is a login mode on the server executable—for example, a future `go run ./cmd/home --login --browser` command—that opens the relevant provider or service login pages in the user's browser. The exact command-line options and whether the browser is local, remote, or otherwise mediated are undecided.
 
 The intended outcome is that the user completes each required authentication flow during setup rather than configuring every service through a separate manual process. This is not necessarily one authentication across unrelated services: each service may require its own consent, account, or login flow. After successful authorization, the server could retain credentials in protected host storage, refresh tokens when supported, and use service-specific authentication logic when making requests.
+
+Treat supported browser/account login as a first-class authentication option alongside API keys. Authentication setup should be explicit; normal startup should reuse configured credentials or report that reauthentication is needed, not unexpectedly launch browsers. OAuth authorization does not itself grant inference entitlements: verify the allowed clients, endpoints, scopes, and subscription-backed usage for each integration. A ChatGPT/Codex login is not automatically a general OpenAI API credential. Our experimental proxy does not establish provider permission or a stable supported integration.
 
 This remains a design idea, not an implemented capability or a commitment to a particular OAuth library, credential store, or browser flow. Any implementation must make requested scopes and services visible, keep secrets out of source code and logs, handle revocation and refresh failures, and distinguish user login credentials from node-instance authentication and client access grants. Services that do not support refresh tokens or browser-based authorization will need an explicit alternative, and some credentials may require re-authentication.
 
