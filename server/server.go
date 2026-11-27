@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"alloy/internal/nodesession"
 )
 
 // ErrAlreadyRun means Run has already been called on this instance.
@@ -52,8 +54,9 @@ func (s *Server) Ready() <-chan struct{} {
 // Startup and serving errors are returned to the caller. Run shuts down its
 // listener and joins its serving goroutine before returning.
 //
-// This initial SDK serves only an internal health check. It does not import
-// host credentials or expose resources, events, or administrative operations.
+// This initial SDK serves a health check and unauthenticated local node
+// sessions. It does not import host credentials or expose resources, events,
+// or administrative operations. Node names are not authenticated identities.
 func (s *Server) Run(ctx context.Context) error {
 	s.mu.Lock()
 
@@ -82,7 +85,11 @@ func (s *Server) Run(ctx context.Context) error {
 }
 
 func (s *Server) serve(ctx context.Context, listener net.Listener) error {
+	sessions := nodesession.NewHandler(ctx)
+	defer sessions.Close()
+
 	mux := http.NewServeMux()
+	mux.Handle("GET "+nodesession.Path, sessions)
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok\n"))

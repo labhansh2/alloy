@@ -2,7 +2,47 @@
 
 A node is **an ordinary, reusable, connectable program**. A registered set of handlers with an optional lifecycle is a useful authoring style, not the definition of every node. Preserve the plain-function examples below while leaving exact APIs, required metadata, and execution modes open.
 
-**Status: proposed authoring patterns, not finalized interfaces.** Existing applications, watchers, connectors, agents, and user-built frontends can participate without turning every internal function into an Alloy handler. The [vision](vision.md) and [design status](design-status.md) take precedence where earlier sketches prescribe a mandatory manifest, runner, or SDK-owned main loop.
+**Status: a minimal Go connection/lifecycle SDK is implemented; the remaining authoring patterns are proposals.** Existing applications, watchers, connectors, agents, and user-built frontends should be able to participate without turning every internal function into an Alloy handler. The [vision](vision.md) takes precedence where earlier sketches prescribe a mandatory manifest, runner, or SDK-owned main loop.
+
+## Implemented first slice: standalone Go node
+
+```go
+import "alloy/node"
+
+n, err := node.New(node.Config{
+    Name:      "deployment-watcher",
+    ServerURL: "http://127.0.0.1:8080", // Use the running server's address.
+})
+if err != nil {
+    return err
+}
+
+return n.Run(ctx)
+```
+
+`New` validates configuration without connecting or installing anything. `Run(ctx)` makes an outbound connection, completes a versioned handshake, and waits until cancellation or disconnection. Canceling the caller's context stops normally; connection/handshake failures and server disconnection return errors. Each instance runs once, with no automatic reconnect. `Ready()` closes after a successful handshake, remains closed after disconnection, and never closes on startup failure; callers waiting on it must also observe the run result or their context.
+
+The current transport is an internal WebSocket session, not part of the public authoring API. Nodes do not open a listening port. This first slice supports only HTTP URLs with a literal loopback IP and explicit port; it rejects remote hosts, redirects, proxies from environment configuration, and browser-origin sessions. It has **no authentication, grants, resources, events, handlers, or durable node registration yet**. A supplied name is descriptive metadata, not identity; handshake success does not prove server identity or authorize access. Authentication/authorization must precede protected operations, and remote connections require a separate secure design.
+
+Run the examples in separate terminals:
+
+```sh
+go run ./cmd/minimal-server
+# Use the URL printed by the server, replacing PORT below.
+go run ./cmd/minimal-node -server http://127.0.0.1:PORT -name deployment-watcher
+```
+
+### One node concept, optional declarative metadata
+
+The SDK node is the running participant. A future YAML manifest would describe that same participant, not create a second kind of node or execute on its own. It could supply requested capabilities, subscriptions, and execution metadata to the SDK or a managed runner. Code supplies behavior and handlers; declarations request access, while server policy grants it. The loading API and how code/YAML avoid conflicting declarations remain open. **The current SDK is code-first and requires no YAML.**
+
+### Dependencies and execution ownership
+
+For now, users prepare dependencies and launch each node with their normal tools: Go modules/builds, npm or pnpm, uv or a manually managed virtual environment, as appropriate. Only the Go node SDK exists today; other language examples below are proposals. Alloy supplies connectivity, not implicit package installation, shared virtual environments, or inherited server credentials. Node and server placement on the same machine does not change that boundary. Deliberately embedded Go nodes would instead share the server's build dependencies and privileges.
+
+Alloy-managed entry points, environment preparation, and supervision remain long-term goals, not requirements for a self-managed node. A future runner should install or execute only explicitly approved projects.
+
+## Longer-term authoring patterns
 
 For a standalone handler-based node, one possible design is:
 
@@ -47,13 +87,11 @@ resources:
 
 The manifest should not contain server credentials or hard-code a server. A node can be registered with different servers, subject to each server’s approval.
 
-We can also add very trivial subscriptions as inbuilt triggers for eg webhook can be trivial and when a node subcrbes to a webhook it shuold just use the options (auth and secret) related to the wbehook service and have options in the yaml to mention the hook url right there. We can think of more such trivial triggers like scheduled execution, tickers, polling, etc. -- just like we had in the legacy code.
-
-We still need to think more on dependency management.
+Built-in trigger declarations could cover webhooks, schedules, tickers, and polling, building on the legacy direction. For example, a webhook declaration could request a logical route and reference protected service credentials; secrets must not be embedded in YAML. Route approval, signature verification, dispatch behavior, and exact trigger schemas remain future design work.
 
 ### Go
 
-Use a `main` package for a standalone node, with normal functions as handlers:
+The implemented Go entry point is shown above. The following handler API is a **future sketch**, not the current `alloy/node` API. Use a `main` package for a standalone node, with normal functions as handlers:
 
 ```go
 package main
@@ -119,7 +157,7 @@ if __name__ == "__main__":
     node.run()
 ```
 
-Alloy runs the project’s entry point as a separate process. Users can organize implementation into classes if they want, but Alloy shouldn’t require a class for a simple handler.
+In the future managed-execution mode, Alloy would run the project’s entry point as a separate process. Self-managed users run it themselves. Users can organize implementation into classes if they want, but Alloy shouldn’t require a class for a simple handler.
 
 ### TypeScript
 
@@ -139,7 +177,7 @@ node.on("deployment.requested.v1", async (ctx, job) => {
 await node.run();
 ```
 
-Again, Alloy runs the compiled JavaScript entry point in its own process. The project can use classes internally without making classes part of the required Alloy contract.
+In the future managed-execution mode, Alloy would run the compiled JavaScript entry point in its own process; self-managed applications retain their own launch/lifecycle. The project can use classes internally without making classes part of the required Alloy contract.
 
 ### Why not have the server instantiate a class?
 
@@ -169,7 +207,7 @@ Server ◄── resource request ── Node SDK
 
 That works well for remote machines behind NAT and avoids assigning and securing a port per node. The node’s logical endpoint is its **registered handlers and capabilities**, not a network address.
 
-The SDK should take care of the connection, authentication, reconnects, dispatch and acknowledgements. On a handler error, Alloy applies the subscription’s retry policy. For durable work, the SDK acknowledges success only after the handler returns successfully; handlers still need to tolerate retries and duplicates.
+The longer-term SDK should take care of connection authentication, supported reconnect behavior, dispatch, and acknowledgements. These are not implemented by the first handshake-only slice. If retries and durable work are introduced, define the subscription policy explicitly and acknowledge success only after the handler returns successfully; handlers still need to tolerate retries and duplicates. An open session alone supplies no delivery or recovery guarantee.
 
 ### Lifecycle without forcing classes
 
@@ -194,7 +232,7 @@ A long-running watcher can publish events from its background task; a worker can
 
 For the handler-based authoring style, evaluate:
 
-1. A manifest describing how to run it and what it requests.
+1. Optional declarative metadata describing how to run it and what it requests; YAML is one proposed format, not a separate node model.
 2. An executable entry point that starts the SDK.
 3. Zero or more event handlers and optional lifecycle hooks.
 4. An SDK-managed outbound connection to the server.

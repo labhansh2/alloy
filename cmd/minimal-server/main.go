@@ -22,6 +22,22 @@ func run() error {
 	defer stop()
 
 	srv := server.New()
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		select {
+		case <-srv.Ready():
+			log.Printf("Alloy server: http://%s", srv.Addr())
+		case <-ctx.Done():
+		}
+	}()
+
+	defer func() {
+		stop()
+		<-done
+	}()
 
 	return srv.Run(ctx)
 }

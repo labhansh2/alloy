@@ -17,7 +17,8 @@ These are proposed designs. Broader release and transport plans are not requirem
 
 ## Prototypes
 
-The first public Go server SDK slice is described in [server structure](server-structure.md#implemented-first-slice); run its standalone example with `go run ./cmd/minimal-server`. It covers server lifetime only, not the capabilities demonstrated by the separate prototypes below.
+The public Go server SDK slice is described in [server structure](server-structure.md#implemented-first-slice); run its standalone example with `go run ./cmd/minimal-server`. It covers server lifetime and local node sessions, not the resource/event capabilities demonstrated by the separate prototypes below.
+The [minimal Go node](node-structure.md#implemented-first-slice-standalone-go-node) adds a manually launched, local-only connection and lifecycle, without YAML, authentication, resources, or event handlers.
 
 - [Shared prototype server](prototype/prototype-server.md)
 - [Events prototype](prototype/events-prototype.md)

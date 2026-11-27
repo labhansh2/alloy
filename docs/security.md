@@ -8,7 +8,7 @@ Protect one user's server from other users, compromised or overprivileged nodes,
 
 Default bind to loopback/local socket. Remote exposure is an explicit setup action with TLS, authentication, authorization, firewall guidance and visible status. A tunnel does not replace authentication. No administrative access, secret value, connection string or host environment is granted just because a node is registered.
 
-The minimal Go SDK currently exposes only a health check and has no client authentication. Loopback is not authentication: other local processes can connect. Add authentication and per-operation authorization before exposing resources or administrative operations. Scoped, revocable local client tokens are one candidate; remote access also requires verified server identity and TLS.
+The minimal Go SDK currently exposes a health check and handshake-only local node sessions, without client authentication. A node name is untrusted metadata, not identity or authority; these sessions expose no resources or administrative operations. Browser-origin sessions are rejected, but loopback is not authentication: other local processes can connect. Add authentication and per-operation authorization before exposing protected operations. Scoped, revocable local client tokens are one candidate; remote access also requires verified server identity and TLS.
 
 ## Principals, enrollment and authorization
 

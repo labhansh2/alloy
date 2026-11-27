@@ -22,7 +22,7 @@ err := srv.Run(ctx)
 
 Run it with `go run ./cmd/minimal-server`. This needs no Alloy CLI, mux, or protocol setup in user code. `New` has no external side effects; `Run` opens an available loopback port and owns startup and shutdown. Cancel the context to stop. Each instance runs once; create a new instance for another run. Optional `Ready()` and `Addr()` methods expose startup completion and the bound address without requiring log scraping.
 
-This slice has only an internal health check—no resource registration, event transport, provider connections, client authentication, persistent identity/state, or protocol selection. It does not yet replace the richer prototype server.
+This slice has an internal health check and a minimal local-only [node session](node-structure.md#implemented-first-slice-standalone-go-node). Session names are unauthenticated metadata and grant no capabilities. There is no resource registration, event transport, provider connection, client authentication, persistent identity/state, or protocol selection. It does not yet replace the richer prototype server. The example prints its bound URL so a separately launched node can connect.
 
 **All remaining layouts, APIs, configuration fields, and commands below are design sketches, not implemented interfaces.** Start with explicit primitives; do not build a polished SDK just to reproduce these examples.
 
@@ -282,6 +282,10 @@ Keep the entry point focused on assembly and lifetime:
 - Logs and transient status are runtime concerns; durable state can be designed later when required.
 
 A trusted Go node may be explicitly linked into the server as an optional adapter. That is not dynamic Go source loading, and it shares the server's memory and OS privileges. It should use the same logical event/resource contract without pretending to be an isolated process.
+
+### Future goal: application-controlled SDK logging
+
+Alloy should emit internal server/node events through an optional injected `*slog.Logger`; applications control level, format, destination, or disable logging. Handshake details belong at debug level, connection lifecycle at info, and actionable problems at warn/error without duplicating returned errors. Never log credentials or full payloads by default. Currently, handshake logging uses unconditional global `log.Printf` calls; configurable logging is not implemented yet.
 
 ## SDK-led construction, with launch details still open
 
