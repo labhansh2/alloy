@@ -31,16 +31,29 @@ type Config struct {
 	// ServerURL is an HTTP base URL with a literal loopback IP and explicit port,
 	// for example http://127.0.0.1:8080. Remote access is not supported yet.
 	ServerURL string
+	// ClientToken is a protected Alloy credential, never an upstream API key.
+	// Empty permits only an anonymous handshake, not provider access.
+	ClientToken string `json:"-"`
+}
+
+func (c Config) String() string {
+	return "node.Config{credentials:redacted}"
+}
+
+func (c Config) GoString() string {
+	return c.String()
 }
 
 // Node is one outbound session. Construct it with New; do not copy it.
 // Its methods are safe to call concurrently. Each instance runs at most once.
 type Node struct {
-	name     string
-	endpoint string
-	ready    chan struct{}
-	mu       sync.Mutex
-	started  bool
+	name      string
+	endpoint  string
+	serverURL string
+	token     string
+	ready     chan struct{}
+	mu        sync.Mutex
+	started   bool
 }
 
 // New validates configuration without starting processes or making connections.
@@ -63,16 +76,33 @@ func New(config Config) (*Node, error) {
 		return nil, errors.New("server URL must be an HTTP loopback IP with an explicit port and no credentials, path, query, or fragment")
 	}
 
+	for _, c := range config.ClientToken {
+		if c < 33 || c > 126 {
+			return nil, errors.New("invalid Alloy client token")
+		}
+	}
+
+	u.Path = ""
+	baseURL := u.String()
 	u.Path = nodesession.Path
 
-	return &Node{name: config.Name, endpoint: u.String(), ready: make(chan struct{})}, nil
+	return &Node{name: config.Name, endpoint: u.String(), serverURL: baseURL, token: config.ClientToken, ready: make(chan struct{})}, nil
 }
 
-// Ready closes after the server accepts the handshake, not after authentication
-// or resource authorization. It remains closed after disconnection. If startup
-// fails it stays open; callers must also observe Run's result or their context.
+// Ready closes after the server accepts the handshake and acknowledges client
+// authentication when a token was supplied. It does not prove server identity
+// or provider access. It remains closed after disconnection. If startup fails
+// it stays open; callers must also observe Run's result or their context.
 func (n *Node) Ready() <-chan struct{} {
 	return n.ready
+}
+
+func (n *Node) String() string {
+	return "node.Node{credentials:redacted}"
+}
+
+func (n *Node) GoString() string {
+	return n.String()
 }
 
 // Run connects and blocks until cancellation or disconnection. Caller
@@ -121,7 +151,12 @@ func (n *Node) run(ctx context.Context) error {
 	handshakeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	conn, resp, err := websocket.Dial(handshakeCtx, n.endpoint, &websocket.DialOptions{HTTPClient: client})
+	headers := make(http.Header)
+	if n.token != "" {
+		headers.Set("Authorization", "Bearer "+n.token)
+	}
+
+	conn, resp, err := websocket.Dial(handshakeCtx, n.endpoint, &websocket.DialOptions{HTTPClient: client, HTTPHeader: headers})
 	if err != nil {
 		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
@@ -149,7 +184,11 @@ func (n *Node) run(ctx context.Context) error {
 		return errors.New("unsupported Alloy server handshake")
 	}
 
-	log.Printf("Alloy node handshake: received welcome (name=%q version=%d; unauthenticated)", n.name, welcome.Version)
+	if n.token != "" && welcome.Client == "" {
+		return errors.New("server did not acknowledge client authentication")
+	}
+
+	log.Printf("Alloy node handshake: received welcome (name=%q version=%d client=%q)", n.name, welcome.Version, welcome.Client)
 
 	cancel()
 	close(n.ready)

@@ -14,6 +14,7 @@ type Message struct {
 	Type    string `json:"type"`
 	Version int    `json:"version"`
 	Name    string `json:"name,omitempty"`
+	Client  string `json:"client,omitempty"`
 }
 
 // ValidateName checks descriptive metadata, not an authenticated identity.

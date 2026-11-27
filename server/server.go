@@ -6,12 +6,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"sync"
 	"time"
 
 	"alloy/internal/nodesession"
+	"alloy/internal/providerproxy"
+	"alloy/internal/providerwire"
 )
 
 // ErrAlreadyRun means Run has already been called on this instance.
@@ -21,10 +24,14 @@ var ErrAlreadyRun = errors.New("alloy server instance has already run")
 // Its methods are safe to call concurrently; a Server must not be copied.
 // An instance can run only once, even if startup fails.
 type Server struct {
-	mu      sync.Mutex
-	started bool
-	addr    string
-	ready   chan struct{}
+	mu        sync.Mutex
+	started   bool
+	loggingIn bool
+	addr      string
+	ready     chan struct{}
+	providers map[string]*providerproxy.Gateway
+	clients   map[[32]byte]clientBinding
+	setups    map[string]providerSetup
 }
 
 // New creates an instance without opening sockets, starting goroutines, reading
@@ -54,9 +61,9 @@ func (s *Server) Ready() <-chan struct{} {
 // Startup and serving errors are returned to the caller. Run shuts down its
 // listener and joins its serving goroutine before returning.
 //
-// This initial SDK serves a health check and unauthenticated local node
-// sessions. It does not import host credentials or expose resources, events,
-// or administrative operations. Node names are not authenticated identities.
+// The server exposes only explicitly registered provider connections to clients
+// with provider grants. Anonymous local sessions remain handshake-only; names
+// alone are not authenticated identities. There are no administrative endpoints.
 func (s *Server) Run(ctx context.Context) error {
 	s.mu.Lock()
 
@@ -65,11 +72,22 @@ func (s *Server) Run(ctx context.Context) error {
 		return ErrAlreadyRun
 	}
 
+	if s.loggingIn {
+		s.mu.Unlock()
+		return errors.New("provider login is in progress")
+	}
+
 	s.started = true
+
 	s.mu.Unlock()
+	defer s.closeProviders()
 
 	if ctx.Err() != nil {
 		return nil
+	}
+
+	if err := s.CheckAuth(ctx); err != nil {
+		return err
 	}
 
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:0")
@@ -86,10 +104,14 @@ func (s *Server) Run(ctx context.Context) error {
 
 func (s *Server) serve(ctx context.Context, listener net.Listener) error {
 	sessions := nodesession.NewHandler(ctx)
+
+	sessions.Authenticate = s.authenticate
 	defer sessions.Close()
 
 	mux := http.NewServeMux()
 	mux.Handle("GET "+nodesession.Path, sessions)
+	mux.HandleFunc("GET "+providerwire.Prefix+"{provider}", s.providerHandler)
+	mux.HandleFunc(providerwire.Prefix+"{provider}/http/{path...}", s.providerHandler)
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok\n"))
@@ -116,6 +138,7 @@ func (s *Server) serve(ctx context.Context, listener net.Listener) error {
 	s.addr = listener.Addr().String()
 	close(s.ready)
 	s.mu.Unlock()
+	log.Printf("Alloy server: http://%s", s.Addr())
 
 	select {
 	case err := <-done:
@@ -140,5 +163,14 @@ func (s *Server) serve(ctx context.Context, listener net.Listener) error {
 		}
 
 		return nil
+	}
+}
+
+func (s *Server) closeProviders() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, gateway := range s.providers {
+		gateway.Close()
 	}
 }

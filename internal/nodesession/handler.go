@@ -11,14 +11,17 @@ import (
 	"github.com/coder/websocket/wsjson"
 )
 
-// Handler accepts unauthenticated local sessions with no granted capabilities.
+// Handler accepts local sessions, optionally authenticated before upgrading.
 // Close cancels and waits for sessions, including hijacked HTTP connections.
 type Handler struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	mu     sync.Mutex
-	closed bool
-	wg     sync.WaitGroup
+	// Authenticate validates a supplied credential and returns a client identity.
+	// Configure before serving. An absent credential remains handshake-only.
+	Authenticate func(*http.Request) (string, bool)
+	ctx          context.Context
+	cancel       context.CancelFunc
+	mu           sync.Mutex
+	closed       bool
+	wg           sync.WaitGroup
 }
 
 func NewHandler(ctx context.Context) *Handler {
@@ -40,6 +43,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Origin") != "" {
 		http.Error(w, "browser node sessions are not supported", http.StatusForbidden)
 		return
+	}
+
+	client := ""
+
+	if r.Header.Get("Authorization") != "" {
+		var ok bool
+		if h.Authenticate != nil {
+			client, ok = h.Authenticate(r)
+		}
+
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
 	}
 
 	h.mu.Lock()
@@ -77,9 +94,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Alloy server handshake: received hello (name=%q version=%d; unauthenticated)", hello.Name, hello.Version)
+	log.Printf("Alloy server handshake: received hello (name=%q version=%d client=%q)", hello.Name, hello.Version, client)
 
-	if err := wsjson.Write(handshakeCtx, conn, Message{Type: "welcome", Version: Version}); err != nil {
+	if err := wsjson.Write(handshakeCtx, conn, Message{Type: "welcome", Version: Version, Client: client}); err != nil {
 		return
 	}
 
