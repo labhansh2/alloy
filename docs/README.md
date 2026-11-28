@@ -17,7 +17,7 @@ These are proposed designs. Broader release and transport plans are not requirem
 
 ## Prototypes
 
-The public Go server SDK is described in [server structure](server-structure.md#implemented-first-slice). The [minimal Go node](node-structure.md#implemented-first-slice-standalone-go-node) provides local sessions and direct provider access. [OpenAI setup](server-structure.md#openai-login-and-the-minimal-example) supports explicit browser login for eligible ChatGPT-plan usage or API-key entry, while the node uses the native SDK. [Gemini](../provider/README.md) also supports server-provisioned API keys and a native SDK client. Provider grants and Alloy client tokens remain separate from upstream login. YAML, event handlers, remote enrollment, and universal OAuth support are not implemented by this slice.
+The public Go server SDK is described in [server structure](server-structure.md#implemented-first-slice). The [minimal Go node](node-structure.md#implemented-first-slice-standalone-go-node) provides local sessions and direct provider access. [OpenAI setup](server-structure.md#openai-login-and-the-minimal-example) supports explicit browser login for eligible ChatGPT-plan usage or API-key entry, while the node uses the native SDK. [Gemini and Anthropic](../provider/README.md) also support server-provisioned API keys and native SDK clients. Provider grants and Alloy client tokens remain separate from upstream login. YAML, event handlers, remote enrollment, and universal OAuth support are not implemented by this slice.
 
 - [Shared prototype server](prototype/prototype-server.md)
 - [Events prototype](prototype/events-prototype.md)
