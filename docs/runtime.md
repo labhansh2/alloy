@@ -31,6 +31,12 @@ Runner detects OS/architecture, installs approved pinned runtime/artifacts into 
 
 ## Packaging and operations
 
+### Human devices and one-purpose workload identity
+
+A user's primary machine may run an optional Alloy helper linked to a selected remote server. It can provide local-facing MCP, credential-helper, or provider-specific proxy interfaces while the server retains upstream credentials and evaluates grants. The helper is a separately authenticated device, not implicit administrator access; locally available interfaces do not mean every local process can use every server capability. For a native CLI that requires a local token, either broker supported operations or explicitly materialize a short-lived, scoped credential—the latter is visible to that CLI and its OS principal.
+
+Short-lived jobs and one-purpose nodes should use separate workload identities, not a primary-machine identity. Prefer cloud/CI workload identity or OIDC token exchange; use a unique expiring, revocable, narrowly granted key only when federation is unavailable. Neither a helper nor workload federation is implemented by this prototype; exact identity, grant, and credential-exchange APIs remain open. See [the security model](security.md#human-authorized-devices-and-purpose-bound-workloads).
+
 **Future design work:** distinguish server/node source and artifact revisions, SDK/protocol compatibility, capability configuration, credential references, and runtime-state/schema versions. Deployment, upgrade, migration, backup, and rollback must account for these separately; one version number or a Git rollback cannot restore all state or undo external actions. Exact mechanisms remain open and are not prerequisites for the first provider connection.
 
 Ship a single server/CLI executable where feasible, plus language SDK packages; optionally an OCI image and system service templates. Server state lives in a configurable user-owned data directory separate from source/config. Provide explicit backup/restore for server ID, CA, configuration, durable state and vault recovery; test restores on a separate machine while avoiding two active copies with the same identity. Add `doctor`, status, structured logs/metrics and upgrade/migration checks. Do not collect telemetry by default without an explicit privacy decision.
