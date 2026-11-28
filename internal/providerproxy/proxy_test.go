@@ -184,3 +184,37 @@ func TestDynamicAuthentication(t *testing.T) {
 		}
 	}
 }
+
+func TestCallerGoogleKeyIsNotForwarded(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Goog-Api-Key") != "" {
+			t.Error("caller Google credential escaped into another provider")
+		}
+
+		if r.Header.Get("Authorization") != "Bearer server-secret" {
+			t.Error("server authentication was lost")
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer upstream.Close()
+
+	auth, _ := provider.BearerToken("server-secret")
+
+	gateway, err := New(provider.Config{BaseURL: upstream.URL, Auth: auth})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gateway.Close()
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.SetPathValue("path", "models")
+	request.Header.Set("X-Goog-Api-Key", "caller-secret")
+
+	response := httptest.NewRecorder()
+	gateway.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("unexpected status: %d", response.Code)
+	}
+}

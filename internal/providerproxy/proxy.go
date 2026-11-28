@@ -68,7 +68,7 @@ func New(config provider.Config) (*Gateway, error) {
 			// common auth headers before the server authenticator runs. Native
 			// service-specific policy belongs in the registered authenticator.
 			for _, header := range []string{
-				"Authorization", "Proxy-Authorization", "Cookie", "X-Api-Key", "Api-Key",
+				"Authorization", "Proxy-Authorization", "Cookie", "X-Api-Key", "Api-Key", "X-Goog-Api-Key",
 				"Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto",
 			} {
 				r.Out.Header.Del(header)

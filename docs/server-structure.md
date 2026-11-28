@@ -51,6 +51,10 @@ Providers require HTTPS, except explicitly registered loopback HTTP services. Th
 
 **Authority and lifecycle:** a grant covers all supported HTTP operations beneath the configured upstream base URL, not just inference or a selected model. No model filtering, spending/concurrency quotas, automatic retries, or full provider-protocol compatibility is promised. `AddProvider` / `AddClient` are pre-start configuration; `RevokeClient` denies subsequent admissions but does not cancel already admitted work or disconnect an otherwise idle node session. `Client.ExpiresAt` is optional; zero lasts until revocation/process exit. Use distinct random client tokens of at least 32 printable non-whitespace ASCII characters, never names or upstream API keys. Tokens are hashed in the server registry; upstream auth remains in server memory. Local transport still lacks verified server identity and protection against same-user credential theft.
 
+### Gemini API keys
+
+Register `google.Provider()` from `alloy/provider/google` for the Gemini Developer API. Google reads server-side `GOOGLE_API_KEY` then `GEMINI_API_KEY`. Construction is lazy, and startup checks local key presence/syntax rather than remote validity. This integration does not implement browser login or managed credential persistence. Its node helper configures the native Google Gen AI SDK with Alloy authority, not upstream secrets or ambient SDK credentials. See [provider integrations](../provider/README.md) for registration, native calls, package boundaries, and custom providers.
+
 ### OpenAI login and the minimal example
 
 The alpha server registers OpenAI and reuses existing managed credentials. Its only flag is `-login`, which performs explicit login and exits:
