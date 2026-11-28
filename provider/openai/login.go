@@ -36,9 +36,9 @@ func (m *manager) login(ctx context.Context, options provider.LoginOptions) erro
 		return err
 	}
 
-	return m.store.locked(ctx, func() error {
+	return m.store.locked(ctx, func(record credentialRecord) error {
 		if options.Method == "token" {
-			previous, err := m.store.load()
+			previous, err := record.load()
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
 				return errors.New("existing OpenAI credentials cannot be read; refusing to overwrite them")
 			}
@@ -60,7 +60,7 @@ func (m *manager) login(ctx context.Context, options provider.LoginOptions) erro
 				return err
 			}
 
-			if err := m.store.save(&credential{Mode: "token", Token: &oauth2.Token{AccessToken: key, TokenType: "Bearer"}}); err != nil {
+			if err := record.save(&credential{Mode: "token", Token: &oauth2.Token{AccessToken: key, TokenType: "Bearer"}}); err != nil {
 				return err
 			}
 
@@ -69,7 +69,7 @@ func (m *manager) login(ctx context.Context, options provider.LoginOptions) erro
 			return nil
 		}
 
-		return m.browserLogin(ctx)
+		return m.browserLogin(ctx, record)
 	})
 }
 
@@ -77,13 +77,13 @@ type callback struct {
 	code, clientID string
 }
 
-func (m *manager) browserLogin(ctx context.Context) error {
-	previous, err := m.store.load()
+func (m *manager) browserLogin(ctx context.Context, record credentialRecord) error {
+	previous, err := record.load()
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return errors.New("existing OpenAI credentials could not be read; refusing to overwrite them")
 	}
 
-	hostID, err := m.store.hostID()
+	hostID, err := record.hostID()
 	if err != nil {
 		return err
 	}
@@ -227,7 +227,7 @@ func (m *manager) browserLogin(ctx context.Context) error {
 		return err
 	}
 
-	if err := m.store.save(saved); err != nil {
+	if err := record.save(saved); err != nil {
 		return err
 	}
 
@@ -278,7 +278,7 @@ func (m *manager) verify(ctx context.Context, raw, clientID, nonce, accessToken 
 	return verified.Subject, claims.Email, nil
 }
 
-func (m *manager) refresh(ctx context.Context, saved *credential) error {
+func (m *manager) refresh(ctx context.Context, record credentialRecord, saved *credential) error {
 	form := url.Values{
 		"grant_type": {"refresh_token"}, "client_id": {saved.ClientID},
 		"refresh_token": {saved.Token.RefreshToken}, "resource": {apiURL},
@@ -330,7 +330,7 @@ func (m *manager) refresh(ctx context.Context, saved *credential) error {
 		next.IDToken, next.Email = renewed.IDToken, email
 	}
 
-	if err := m.store.save(&next); err != nil {
+	if err := record.save(&next); err != nil {
 		return err
 	}
 

@@ -33,11 +33,11 @@ type memoryStore struct {
 	host  string
 }
 
-func (s *memoryStore) locked(ctx context.Context, work func() error) error {
+func (s *memoryStore) locked(ctx context.Context, work func(credentialRecord) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return work()
+	return work(s)
 }
 
 func (s *memoryStore) load() (*credential, error) {
@@ -325,7 +325,7 @@ func TestRejectsInvalidBrowserIdentityAndScopes(t *testing.T) {
 				t.Fatal("invalid authorization was accepted")
 			}
 
-			saved, err := m.store.load()
+			saved, err := m.store.(*memoryStore).load()
 			if kind != "subject" && !errors.Is(err, os.ErrNotExist) {
 				t.Fatal("invalid login saved credentials")
 			}
@@ -414,7 +414,7 @@ func TestBrowserCancellationDoesNotSaveCredentials(t *testing.T) {
 		t.Fatal("cancellation was ignored")
 	}
 
-	if _, err := m.store.load(); !errors.Is(err, os.ErrNotExist) {
+	if _, err := m.store.(*memoryStore).load(); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("canceled login saved credentials")
 	}
 }

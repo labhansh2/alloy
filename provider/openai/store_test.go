@@ -2,6 +2,12 @@ package openai
 
 import (
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -12,33 +18,37 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func TestEncryptedStoreAndStableHost(t *testing.T) {
-	var master string
+func isolatedStore(t *testing.T) *diskStore {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	keyring.MockInit()
+	t.Cleanup(keyring.MockInit)
 
-	s := &diskStore{dir: filepath.Join(t.TempDir(), "credentials"), account: "test",
-		keyGet: func() (string, error) {
-			if master == "" {
-				return "", keyring.ErrNotFound
-			}
-
-			return master, nil
-		},
-		keySet: func(key string) error { master = key; return nil },
+	store, err := newStore("test")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	err := s.locked(context.Background(), func() error {
-		first, err := s.hostID()
+	return store
+}
+
+func TestEncryptedStoreAndStableHost(t *testing.T) {
+	s := isolatedStore(t)
+
+	err := s.locked(context.Background(), func(record credentialRecord) error {
+		first, err := record.hostID()
 		if err != nil {
 			return err
 		}
 
-		second, err := s.hostID()
+		second, err := record.hostID()
 		if err != nil || first != second {
 			t.Fatal("host ID changed")
 		}
 
 		saved := &credential{Mode: "token", Token: &oauth2.Token{AccessToken: "seeded-secret"}}
-		if err := s.save(saved); err != nil {
+		if err := record.save(saved); err != nil {
 			return err
 		}
 
@@ -51,7 +61,7 @@ func TestEncryptedStoreAndStableHost(t *testing.T) {
 			t.Fatal("credentials were stored in plaintext")
 		}
 
-		loaded, err := s.load()
+		loaded, err := record.load()
 		if err != nil || loaded.Token.AccessToken != "seeded-secret" {
 			t.Fatalf("could not unlock credentials: %v", err)
 		}
@@ -61,7 +71,7 @@ func TestEncryptedStoreAndStableHost(t *testing.T) {
 			return err
 		}
 
-		if _, err := s.load(); err == nil {
+		if _, err := record.load(); err == nil {
 			t.Fatal("tampered ciphertext was accepted")
 		}
 
@@ -73,10 +83,13 @@ func TestEncryptedStoreAndStableHost(t *testing.T) {
 }
 
 func TestNoPlaintextFallback(t *testing.T) {
-	s := &diskStore{dir: t.TempDir(), account: "test",
-		keyGet: func() (string, error) { return "", errors.New("unavailable") }, keySet: func(string) error { return errors.New("unavailable") },
-	}
-	if err := s.save(&credential{Token: &oauth2.Token{AccessToken: "secret"}}); err == nil {
+	s := isolatedStore(t)
+
+	keyring.MockInitWithError(errors.New("unavailable"))
+
+	if err := s.locked(context.Background(), func(record credentialRecord) error {
+		return record.save(&credential{Token: &oauth2.Token{AccessToken: "secret"}})
+	}); err == nil {
 		t.Fatal("unavailable keychain was ignored")
 	}
 
@@ -85,24 +98,111 @@ func TestNoPlaintextFallback(t *testing.T) {
 	}
 }
 
-func TestRejectsPermissiveAndSymlinkCredentialFiles(t *testing.T) {
-	dir := t.TempDir()
+func TestLegacyCredentialCompatibility(t *testing.T) {
+	s := isolatedStore(t)
+	base, _ := os.UserConfigDir()
 
-	path := filepath.Join(dir, "credentials")
-	if err := os.WriteFile(path, []byte("secret"), 0644); err != nil {
+	legacyDir := filepath.Join(base, "alloy", "providers", "openai")
+	if s.dir != legacyDir {
+		t.Fatal("OpenAI credential directory changed")
+	}
+
+	if err := os.MkdirAll(legacyDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := privateRead(path); err == nil {
-		t.Fatal("permissive credential file accepted")
-	}
+	// Build a fixture independently using the pre-extraction file format,
+	// keyring lookup, AAD, and host identity location.
+	key := []byte("0123456789abcdef0123456789abcdef")
+	digest := sha256.Sum256([]byte(legacyDir))
 
-	link := filepath.Join(dir, "link")
-	if err := os.Symlink(path, link); err != nil {
+	keyName := "encryption-key-" + hex.EncodeToString(digest[:16])
+	if err := keyring.Set("alloy.openai", keyName, base64.StdEncoding.EncodeToString(key)); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := privateRead(link); err == nil {
-		t.Fatal("symlink credential file accepted")
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plain := []byte(`{"mode":"browser","client_id":"registered-client","subject":"same-user","scopes":"openid resource.invoke chatgpt.tokens.use.direct","token":{"access_token":"legacy-access","refresh_token":"legacy-refresh","token_type":"Bearer"}}`)
+	nonce := []byte("legacy-nonce")
+	encoded := aead.Seal(append([]byte(nil), nonce...), nonce, plain, []byte("alloy.openai.v1:test"))
+
+	path := filepath.Join(legacyDir, "test.enc")
+	if err := os.WriteFile(path, encoded, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	host := "urn:uuid:12345678-1234-4234-8234-123456789abc"
+	if err := os.WriteFile(filepath.Join(legacyDir, "host-id"), []byte(host), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.locked(context.Background(), func(record credentialRecord) error {
+		saved, err := record.load()
+		if err != nil || saved.Token.AccessToken != "legacy-access" || saved.Token.RefreshToken != "legacy-refresh" || saved.Subject != "same-user" {
+			t.Fatalf("legacy credentials were not preserved: %v", err)
+		}
+
+		id, err := record.hostID()
+		if err != nil || id != host {
+			t.Fatal("legacy registration host identity changed")
+		}
+
+		saved.Token.AccessToken = "renewed-access"
+
+		return record.save(saved)
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	decrypted, err := aead.Open(nil, updated[:aead.NonceSize()], updated[aead.NonceSize():], []byte("alloy.openai.v1:test"))
+	if err != nil {
+		t.Fatal("new records no longer use the legacy encryption format")
+	}
+
+	var saved credential
+	if err := json.Unmarshal(decrypted, &saved); err != nil || saved.Token.AccessToken != "renewed-access" {
+		t.Fatal("legacy reader could not decode updated credentials")
+	}
+
+	storedKey, err := keyring.Get("alloy.openai", keyName)
+	if err != nil || storedKey != base64.StdEncoding.EncodeToString(key) {
+		t.Fatal("legacy encryption key was replaced")
+	}
+}
+
+func TestInvalidAccountsAndSchema(t *testing.T) {
+	for _, account := range []string{"", ".", "..", "../escape", "bad account"} {
+		if _, err := newStore(account); err == nil {
+			t.Fatal("invalid OpenAI account accepted")
+		}
+	}
+
+	s := isolatedStore(t)
+	if err := s.locked(context.Background(), func(record credentialRecord) error {
+		if err := record.(*diskRecord).record.Save([]byte("not-json")); err != nil {
+			return err
+		}
+
+		if _, err := record.load(); err == nil {
+			t.Fatal("opaque storage bypassed OpenAI credential schema validation")
+		}
+
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 }

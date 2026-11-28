@@ -6,10 +6,12 @@ Alloy manages access and server-side authentication without translating inferenc
 
 - `alloy/provider`: public configuration, connection settings, and authentication helpers. Custom integrations return `provider.Config` and may supply their own `Auth`, `CheckAuth`, and `Login` callbacks.
 - `alloy/provider/openai`, `alloy/provider/google`, `alloy/provider/anthropic`: optional first-party registration defaults and native SDK setup.
+- `alloy/credentials`: public opaque-record storage contract and a namespaced OS-keyring-backed store for custom integrations; see [credential storage](../credentials/README.md).
+- `internal/credentialstore`: shared encryption, atomic file I/O, and cross-process locking. OpenAI uses it with its legacy identifiers.
 - `internal/providerauth`: shared environment-key resolution and preflight implementation for first-party integrations, not an extension contract.
 - `internal/providerproxy` and `internal/providerwire`: gateway enforcement and Alloy wire details, not public SDK APIs.
 
-Encrypted OpenAI credential storage and OAuth policy remain inside its integration. Google and Anthropic currently use server-provisioned environment keys; they have no Alloy-managed persistence or browser login. A public managed credential-store interface has not been designed.
+OpenAI retains its credential schema, OAuth policy, and registration identity inside its integration; encryption and locked persistence use the shared storage engine without moving existing logins. Google and Anthropic currently use server-provisioned environment keys; they have no Alloy-managed persistence or browser login.
 
 ## Register Gemini and Anthropic
 

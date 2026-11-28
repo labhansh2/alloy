@@ -69,7 +69,10 @@ type credential struct {
 }
 
 type credentialStore interface {
-	locked(context.Context, func() error) error
+	locked(context.Context, func(credentialRecord) error) error
+}
+
+type credentialRecord interface {
 	load() (*credential, error)
 	save(*credential) error
 	hostID() (string, error)
@@ -145,8 +148,8 @@ func (m *manager) accessToken(ctx context.Context) (string, error) {
 
 	var result string
 
-	err := m.store.locked(ctx, func() error {
-		saved, err := m.store.load()
+	err := m.store.locked(ctx, func(record credentialRecord) error {
+		saved, err := record.load()
 		if errors.Is(err, os.ErrNotExist) {
 			key := m.getenv("OPENAI_API_KEY")
 			if _, err := provider.BearerToken(key); err != nil {
@@ -176,7 +179,7 @@ func (m *manager) accessToken(ctx context.Context) (string, error) {
 			}
 
 			if saved.Token.AccessToken == "" || !saved.Token.Expiry.After(time.Now().Add(time.Minute)) {
-				if err := m.refresh(ctx, saved); err != nil {
+				if err := m.refresh(ctx, record, saved); err != nil {
 					return err
 				}
 			}
