@@ -206,7 +206,7 @@ func (m *manager) browserLogin(ctx context.Context, record credentialRecord) err
 
 	token, err := config.Exchange(tokenCtx, authorized.code, oauth2.VerifierOption(verifier), oauth2.SetAuthURLParam("resource", apiURL))
 	if err != nil {
-		return errors.New("OpenAI code exchange failed; retry --login")
+		return errors.New("OpenAI code exchange failed; retry the server's explicit login flow")
 	}
 
 	idToken, _ := token.Extra("id_token").(string)
@@ -293,7 +293,7 @@ func (m *manager) refresh(ctx context.Context, record credentialRecord, saved *c
 
 	response, err := m.client.Do(r)
 	if err != nil {
-		return errors.New("OpenAI token refresh unavailable; retry or use --login")
+		return errors.New("OpenAI token refresh unavailable; retry or reauthenticate on the server")
 	}
 	defer response.Body.Close()
 
@@ -307,7 +307,7 @@ func (m *manager) refresh(ctx context.Context, record credentialRecord, saved *c
 	}
 	if response.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(&renewed) != nil ||
 		renewed.AccessToken == "" || renewed.ExpiresIn <= 0 || renewed.ExpiresIn > 365*24*60*60 || !strings.EqualFold(renewed.TokenType, "Bearer") {
-		return errors.New("OpenAI token refresh failed; run --login")
+		return errors.New("OpenAI token refresh failed; reauthenticate on the server")
 	}
 
 	next := *saved
@@ -324,7 +324,7 @@ func (m *manager) refresh(ctx context.Context, record credentialRecord, saved *c
 	if renewed.IDToken != "" {
 		subject, email, err := m.verify(ctx, renewed.IDToken, saved.ClientID, "", renewed.AccessToken)
 		if err != nil || subject != saved.Subject {
-			return errors.New("OpenAI refresh changed account identity; run --login")
+			return errors.New("OpenAI refresh changed account identity; reauthenticate on the server")
 		}
 
 		next.IDToken, next.Email = renewed.IDToken, email

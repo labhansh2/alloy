@@ -56,7 +56,7 @@ func Client(connection provider.Connection) native.Client {
 	)
 }
 
-var errLoginRequired = errors.New("OpenAI authentication required; run with --login to continue with ChatGPT, or --login --auth token to save an API key")
+var errLoginRequired = errors.New("OpenAI authentication required; set OPENAI_API_KEY on the server or use its explicit login flow (browser for eligible ChatGPT access, token for API-key entry)")
 
 type credential struct {
 	Mode     string        `json:"mode"`

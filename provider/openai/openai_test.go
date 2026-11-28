@@ -81,7 +81,7 @@ func TestMissingAuthAndTokenLogin(t *testing.T) {
 	m.secret = func() (string, error) { return "saved-api-key", nil }
 	ctx := context.Background()
 
-	if err := m.check(ctx); err == nil || !strings.Contains(err.Error(), "--login") {
+	if err := m.check(ctx); err == nil || !strings.Contains(err.Error(), "OPENAI_API_KEY") || strings.Contains(err.Error(), "--") {
 		t.Fatal("missing credentials did not give login guidance")
 	}
 
