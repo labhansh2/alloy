@@ -14,3 +14,5 @@
 - Automation and portable tooling are supporting capabilities, not the whole product.
 
 Start with the [product vision](docs/vision.md) and [documentation index](docs/README.md). Public research lives in `docs/research/`; private planning documents are intentionally excluded from the public docs index.
+
+Runnable code lives in [examples/](examples/README.md): current SDK examples in `examples/alpha/` and exploratory integrations in `examples/prototypes/`.

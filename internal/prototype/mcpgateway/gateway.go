@@ -1,5 +1,5 @@
 // Package mcpgateway exposes explicitly selected upstream MCP tools using the
-// standard MCP transport. Application connections and policy live in cmd/.
+// standard MCP transport. Application connections and policy live in examples/prototypes/.
 package mcpgateway
 
 import (

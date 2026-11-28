@@ -61,9 +61,9 @@ func run() error {
 		return err
 	}
 
-	script := filepath.Join(root, "cmd/browsenode/dist/run.js")
+	script := filepath.Join(root, "examples/prototypes/browsenode/dist/run.js")
 	if _, err := os.Stat(script); err != nil {
-		return errors.New("build the node first: pnpm --dir cmd/browsenode build")
+		return errors.New("build the node first: pnpm --dir examples/prototypes/browsenode build")
 	}
 
 	node, err := exec.LookPath("node")

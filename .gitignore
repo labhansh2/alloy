@@ -2,5 +2,5 @@
 /docs/private
 /docs/prototype
 node_modules/
-/cmd/codexnode/dist/
-/cmd/browsenode/dist/
+/examples/prototypes/codexnode/dist/
+/examples/prototypes/browsenode/dist/

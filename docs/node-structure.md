@@ -34,12 +34,12 @@ For OpenAI, `client := openai.Client(connection)` from `alloy/provider/openai` r
 Run the examples in separate terminals:
 
 ```sh
-go run ./cmd/minimal-server
+go run ./examples/alpha/server
 # Use the URL printed by the server, replacing PORT below.
-go run ./cmd/minimal-node -server http://127.0.0.1:PORT -name deployment-watcher
+go run ./examples/alpha/node -server http://127.0.0.1:PORT
 ```
 
-The minimal server registers OpenAI, so complete its login setup and provision the shared Alloy client token first. A bare `server.New()` in other programs still needs no provider or account.
+The alpha server registers OpenAI, so complete its login setup first. Both alpha examples read `ALLOY_CLIENT_TOKEN` from their environment; use their `.env.example` templates to configure the same protected random token on each side. The alpha node makes one inference call and exits; the long-lived session API above remains available to other programs. A bare `server.New()` in other programs still needs no provider or account.
 
 ### One node concept, optional declarative metadata
 

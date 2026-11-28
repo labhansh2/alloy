@@ -1,4 +1,4 @@
-package main
+package openai_test
 
 import (
 	"context"

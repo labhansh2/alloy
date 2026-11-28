@@ -1,4 +1,4 @@
-package main
+package openai_test
 
 import (
 	"context"
@@ -11,22 +11,26 @@ import (
 
 	"alloy/node"
 	"alloy/provider"
+	"alloy/provider/openai"
 	"alloy/server"
+
+	native "github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/responses"
 )
 
-func TestProviderExampleUsesNativeResponses(t *testing.T) {
+func TestClientUsesNativeResponses(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/responses" || r.Header.Get("Authorization") != "Bearer upstream-secret" {
-			t.Error("example did not use the native route and server-side auth")
+			t.Error("client did not use the native route and server-side auth")
 		}
 
 		body, _ := io.ReadAll(r.Body)
 		if !strings.Contains(string(body), `"model":"test-model"`) {
-			t.Error("example did not send the selected model")
+			t.Error("client did not send the selected model")
 		}
 
 		if !strings.Contains(string(body), `"store":false`) || !strings.Contains(string(body), `"stream":true`) || strings.Contains(string(body), "max_output_tokens") {
-			t.Error("example does not meet the ChatGPT plan Responses contract")
+			t.Error("request does not meet the ChatGPT plan Responses contract")
 		}
 
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -74,7 +78,35 @@ func TestProviderExampleUsesNativeResponses(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := runProviderExample(ctx, n, "test", "test-model", "hello"); err != nil {
+	connection, err := n.Provider(ctx, "test")
+	if err != nil {
 		t.Fatal(err)
+	}
+
+	client := openai.Client(connection)
+
+	stream := client.Responses.NewStreaming(ctx, responses.ResponseNewParams{
+		Model: "test-model",
+		Input: responses.ResponseNewParamsInputUnion{OfInputItemList: responses.ResponseInputParam{
+			responses.ResponseInputItemParamOfMessage("hello", responses.EasyInputMessageRoleUser),
+		}},
+		Store: native.Bool(false),
+	})
+	defer stream.Close()
+
+	completed := false
+
+	for stream.Next() {
+		if stream.Current().Type == "response.completed" {
+			completed = true
+		}
+	}
+
+	if err := stream.Err(); err != nil {
+		t.Fatal(err)
+	}
+
+	if !completed {
+		t.Fatal("native SDK did not receive response.completed")
 	}
 }

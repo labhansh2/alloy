@@ -55,9 +55,9 @@ func run() error {
 		return err
 	}
 
-	script := filepath.Join(root, "cmd/codexnode/dist/run.js")
+	script := filepath.Join(root, "examples/prototypes/codexnode/dist/run.js")
 	if _, err := os.Stat(script); err != nil {
-		return errors.New("build the node first: pnpm --dir cmd/codexnode build")
+		return errors.New("build the node first: pnpm --dir examples/prototypes/codexnode build")
 	}
 
 	workspace, err := os.MkdirTemp("", "alloy-codex-node-")
