@@ -132,3 +132,29 @@ func TestSharedCLIAndCodexRoutesKeepDistinctCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestStateLockIsExclusiveAndReusable(t *testing.T) {
+	stateDir := t.TempDir()
+
+	first, err := acquireStateLock(stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+
+	if second, err := acquireStateLock(stateDir); err == nil {
+		_ = second.Close()
+
+		t.Fatal("two servers acquired the same state directory")
+	}
+
+	if err := first.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := acquireStateLock(stateDir)
+	if err != nil {
+		t.Fatalf("state lock was not released: %v", err)
+	}
+	defer reopened.Close()
+}

@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/gofrs/flock"
 )
 
 func main() {
@@ -67,16 +69,11 @@ func run() error {
 		return errors.New("state directory must be private (0700)")
 	}
 
-	lock, err := os.OpenFile(filepath.Join(*stateDir, "server.lock"), os.O_CREATE|os.O_RDWR, 0600)
+	lock, err := acquireStateLock(*stateDir)
 	if err != nil {
 		return err
 	}
 	defer lock.Close()
-
-	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		return errors.New("another server owns this state directory")
-	}
-	defer syscall.Flock(int(lock.Fd()), syscall.LOCK_UN)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -157,4 +154,21 @@ func defaultStateDir(configDir string) string {
 	}
 
 	return current
+}
+
+func acquireStateLock(stateDir string) (*flock.Flock, error) {
+	lock := flock.New(filepath.Join(stateDir, "server.lock"), flock.SetPermissions(0600))
+
+	locked, err := lock.TryLock()
+	if err != nil || !locked {
+		_ = lock.Close()
+
+		if err != nil {
+			return nil, errors.New("cannot acquire the server state directory lock")
+		}
+
+		return nil, errors.New("another server owns this state directory")
+	}
+
+	return lock, nil
 }
