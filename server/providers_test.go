@@ -166,3 +166,67 @@ func TestInvalidClientConfiguration(t *testing.T) {
 		}
 	}
 }
+
+func TestCancellationDuringPreflightStopsNormally(t *testing.T) {
+	for _, failure := range []struct {
+		name string
+		err  error
+	}{
+		{name: "context error", err: context.Canceled},
+		{name: "provider error", err: errors.New("authentication interrupted")},
+	} {
+		t.Run(failure.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			srv := New()
+
+			auth, _ := provider.BearerToken("upstream-key")
+			if err := srv.AddProvider("managed", provider.Config{
+				BaseURL: "https://api.example.com", Auth: auth,
+				CheckAuth: func(context.Context) error {
+					cancel()
+					return failure.err
+				},
+			}); err != nil {
+				t.Fatal(err)
+			}
+
+			if err := srv.Run(ctx); err != nil {
+				t.Fatalf("normal startup cancellation returned an error: %v", err)
+			}
+
+			if srv.Addr() != "" {
+				t.Fatal("canceled preflight opened a listener")
+			}
+
+			select {
+			case <-srv.Ready():
+				t.Fatal("canceled preflight reported readiness")
+			default:
+			}
+		})
+	}
+}
+
+func TestProviderCancellationDoesNotHidePreflightFailure(t *testing.T) {
+	srv := New()
+
+	auth, _ := provider.BearerToken("upstream-key")
+	if err := srv.AddProvider("managed", provider.Config{
+		BaseURL: "https://api.example.com", Auth: auth,
+		CheckAuth: func(context.Context) error { return context.DeadlineExceeded },
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// A provider's own timeout is still a startup failure when the caller's
+	// context is active; only cancellation of the server itself is normal stop.
+	if err := srv.Run(context.Background()); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("provider preflight failure was hidden: %v", err)
+	}
+
+	if srv.Addr() != "" {
+		t.Fatal("failed preflight opened a listener")
+	}
+}

@@ -87,6 +87,10 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 
 	if err := s.CheckAuth(ctx); err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
+
 		return err
 	}
 
