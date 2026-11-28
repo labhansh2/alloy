@@ -82,7 +82,10 @@ func New(config provider.Config) (*Gateway, error) {
 			http.Error(w, "provider request failed", http.StatusBadGateway)
 		},
 		ModifyResponse: func(response *http.Response) error {
-			if response.StatusCode >= 300 && response.StatusCode < 400 {
+			switch response.StatusCode {
+			case http.StatusMultipleChoices, http.StatusMovedPermanently, http.StatusFound,
+				http.StatusSeeOther, http.StatusUseProxy,
+				http.StatusTemporaryRedirect, http.StatusPermanentRedirect:
 				return errors.New("provider redirects are not supported")
 			}
 

@@ -75,15 +75,54 @@ func TestRequestLimitsAndPaths(t *testing.T) {
 }
 
 func TestRedirectIsNotFollowedOrReturned(t *testing.T) {
-	var destinationCalls atomic.Int32
+	for _, status := range []int{
+		http.StatusMultipleChoices, http.StatusMovedPermanently, http.StatusFound,
+		http.StatusSeeOther, http.StatusUseProxy,
+		http.StatusTemporaryRedirect, http.StatusPermanentRedirect,
+	} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			var destinationCalls atomic.Int32
 
-	destination := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		destinationCalls.Add(1)
-	}))
-	defer destination.Close()
+			destination := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				destinationCalls.Add(1)
+			}))
+			defer destination.Close()
 
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, destination.URL, status)
+			}))
+			defer upstream.Close()
+
+			auth, _ := provider.BearerToken("server-secret")
+
+			gateway, err := New(provider.Config{BaseURL: upstream.URL, Auth: auth})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer gateway.Close()
+
+			r := httptest.NewRequest(http.MethodGet, "/", nil)
+			r.SetPathValue("path", "responses")
+
+			w := httptest.NewRecorder()
+			gateway.ServeHTTP(w, r)
+
+			if w.Code != http.StatusBadGateway || w.Header().Get("Location") != "" || destinationCalls.Load() != 0 {
+				t.Fatal("upstream redirect escaped the configured connection")
+			}
+		})
+	}
+}
+
+func TestConditionalResponseIsPreserved(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, destination.URL, http.StatusTemporaryRedirect)
+		if r.Header.Get("If-None-Match") != `"model-version"` {
+			t.Error("conditional request header was lost")
+		}
+
+		w.Header().Set("ETag", `"model-version"`)
+		w.Header().Set("Cache-Control", "private, max-age=60")
+		w.WriteHeader(http.StatusNotModified)
 	}))
 	defer upstream.Close()
 
@@ -95,14 +134,18 @@ func TestRedirectIsNotFollowedOrReturned(t *testing.T) {
 	}
 	defer gateway.Close()
 
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	r.SetPathValue("path", "responses")
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.SetPathValue("path", "models")
+	request.Header.Set("If-None-Match", `"model-version"`)
 
-	w := httptest.NewRecorder()
-	gateway.ServeHTTP(w, r)
+	response := httptest.NewRecorder()
+	gateway.ServeHTTP(response, request)
 
-	if w.Code != http.StatusBadGateway || w.Header().Get("Location") != "" || destinationCalls.Load() != 0 {
-		t.Fatal("upstream redirect escaped the configured connection")
+	if response.Code != http.StatusNotModified ||
+		response.Header().Get("ETag") != `"model-version"` ||
+		response.Header().Get("Cache-Control") != "private, max-age=60" ||
+		response.Body.Len() != 0 {
+		t.Fatalf("conditional response was not preserved: status=%d headers=%v", response.Code, response.Header())
 	}
 }
 
